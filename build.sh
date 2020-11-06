@@ -1,8 +1,10 @@
 #!/bin/sh -e
 
-export CROSS_HOST=arm-linux-musleabi
-export OPENSSL_COMPILER=linux-armv4
-export CROSS_ROOT=/cross_root
+# value from: https://musl.cc/ (without -cross or -native)
+export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
+# value from openssl source: ./Configure LIST
+export OPENSSL_COMPILER="${OPENSSL_COMPILER:-linux-armv4}"
+export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
 export LDFLAGS='-s -static --static'
 sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/' /etc/apk/repositories
 apk upgrade
@@ -16,6 +18,8 @@ apk add g++ \
   file \
   perl \
   tcl \
+  autoconf \
+  automake \
   ca-certificates-bundle
 mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/xz \
@@ -36,7 +40,7 @@ export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 SELF_DIR="$(dirname "${0}")"
 
 # toolchain
-[ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ] && wget -c -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://more.musl.cc/10/x86_64-linux-musl/${CROSS_HOST}-cross.tgz"
+[ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ] && wget -c -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
 tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --strip-components=1 -C "${CROSS_ROOT}"
 if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
   zlib_latest_url="$(wget -qO- https://api.github.com/repos/madler/zlib/tags | jq -r '.[0].tarball_url')"
