@@ -159,7 +159,7 @@ cd /usr/src/aria2
 if [ ! -f ./configure ]; then
   autoreconf -i
 fi
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes --with-libuv --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt --with-jemalloc
+./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes --with-libuv --with-jemalloc
 make -j$(nproc)
 make install
 
