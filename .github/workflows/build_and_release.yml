@@ -39,6 +39,9 @@ jobs:
           CROSS_HOST: "${{ matrix.cross_host }}"
           OPENSSL_COMPILER: "${{ matrix.openssl_compiler }}"
         run: |
+          if [ "${GITHUB_EVENT_NAME}" = release ]; then
+            export ARIA2_VER="${GITHUB_REF##*/}"
+          fi
           "${GITHUB_WORKSPACE}/build.sh"
       - name: zip archiving
         env:

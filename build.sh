@@ -158,13 +158,18 @@ make install
 
 # aria2
 if [ ! -f "${SELF_DIR}/aria2.tar.gz" ]; then
-  aria2_latest_tag="$(wget -qO- https://api.github.com/repos/aria2/aria2/tags | jq -r '.[0].name')"
-  aria2_latest_ver="${aria2_latest_tag#*-}"
-  aria2_latest_url="https://github.com/aria2/aria2/releases/download/release-${aria2_latest_ver}/aria2-${aria2_latest_ver}.tar.gz"
+  if [ -n "${ARIA2_VER}" ]; then
+    aria2_latest_url="https://github.com/aria2/aria2/releases/download/release-${ARIA2_VER}/aria2-${ARIA2_VER}.tar.gz"
+  else
+    aria2_latest_url="https://github.com/aria2/aria2/archive/master.tar.gz"
+  fi
   wget -c -O "${SELF_DIR}/aria2.tar.gz" "${aria2_latest_url}"
 fi
 tar -zxf "${SELF_DIR}/aria2.tar.gz" --strip-components=1 -C /usr/src/aria2
 cd /usr/src/aria2
+if [ ! -f ./configure ]; then
+  autoreconf -i
+fi
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared ARIA2_STATIC=yes --with-libuv --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt --with-jemalloc
 make -j$(nproc)
 make install
