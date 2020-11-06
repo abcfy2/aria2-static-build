@@ -20,6 +20,7 @@ apk add g++ \
   tcl \
   autoconf \
   automake \
+  gettext-dev \
   ca-certificates-bundle
 mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/xz \
