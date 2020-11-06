@@ -49,6 +49,15 @@ jobs:
         run: |
           apk add zip
           zip -j9v "/tmp/aria2-${CROSS_HOST}_static.zip" "${GITHUB_WORKSPACE}"/aria2c*
+      - name: Delete old release assets
+        if: github.event_name == 'push' || github.event_name == 'schedule'
+        uses: mknejp/delete-release-assets@v1
+        with:
+          token: ${{ github.token }}
+          tag: continuous
+          assets: aria2-${{ matrix.cross_host }}_static.zip
+          fail-if-no-assets: false
+          fail-if-no-release: false
       - name: Prerelease Tag
         if: github.event_name == 'push' || github.event_name == 'schedule'
         uses: softprops/action-gh-release@v1

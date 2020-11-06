@@ -25,7 +25,6 @@ apk add g++ \
 mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/xz \
   /usr/src/openssl \
-  /usr/src/libiconv \
   /usr/src/libxml2 \
   /usr/src/sqlite \
   /usr/src/c-ares \
@@ -75,17 +74,6 @@ cd /usr/src/openssl
 ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
 make -j$(nproc)
 make install_sw
-
-# libiconv
-if [ ! -f "${SELF_DIR}/libiconv.tar.gz" ]; then
-  libiconv_latest_url="$(wget -qO- https://www.gnu.org/software/libiconv/ | grep -o '[^>< "]*ftp.gnu.org/pub/gnu/libiconv/.[^>< "]*' | head -1)"
-  wget -c -O "${SELF_DIR}/libiconv.tar.gz" "${libiconv_latest_url}"
-fi
-tar -zxf "${SELF_DIR}/libiconv.tar.gz" --strip-components=1 -C /usr/src/libiconv
-cd /usr/src/libiconv
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
-make -j$(nproc)
-make install
 
 # libxml2
 if [ ! -f "${SELF_DIR}/libxml2.tar.gz" ]; then
@@ -171,7 +159,7 @@ cd /usr/src/aria2
 if [ ! -f ./configure ]; then
   autoreconf -i
 fi
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared ARIA2_STATIC=yes --with-libuv --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt --with-jemalloc
+./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes --with-libuv --with-ca-bundle=/etc/ssl/certs/ca-certificates.crt --with-jemalloc
 make -j$(nproc)
 make install
 
