@@ -29,10 +29,8 @@ jobs:
             openssl_compiler: linux-mips32
           - cross_host: mips64-linux-musl
             openssl_compiler: linux64-mips64
-          - cross_host: x86_64-w64-mingw32
-            openssl_compiler: 'mingw64'
           - cross_host: x86_64-linux-musl
-            openssl_compiler: 'linux-x86_64'
+            openssl_compiler: "linux-x86_64"
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -47,12 +45,14 @@ jobs:
           CROSS_HOST: "${{ matrix.cross_host }}"
         run: |
           apk add zip
-          zip -j9v "/tmp/aria2-${CROSS_HOST}_static.zip" "${GITHUB_WORKSPACE}/aria2c*"
-      - name: Upload Github Assets
-        if: startsWith(github.ref, 'refs/tags/')
-        uses: svenstaro/upload-release-action@v2
+          zip -j9v "/tmp/aria2-${CROSS_HOST}_static.zip" "${GITHUB_WORKSPACE}"/aria2c*
+      - name: Prerelease Tag
+        if: github.event_name == 'push' || github.event_name == 'schedule'
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: /tmp/aria2-${{ matrix.cross_host }}_static.zip
-          tag: ${{ github.ref }}
-          overwrite: true
+          files: /tmp/aria2*
+          prerelease: true
+          tag_name: continuous
+          name: Continuous build

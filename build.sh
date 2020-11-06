@@ -27,8 +27,6 @@ mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/libiconv \
   /usr/src/libxml2 \
   /usr/src/sqlite \
-  /usr/src/gmp \
-  /usr/src/nettle \
   /usr/src/c-ares \
   /usr/src/libssh2 \
   /usr/src/libuv \
@@ -41,7 +39,9 @@ SELF_DIR="$(dirname "${0}")"
 
 # toolchain
 [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ] && wget -c -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
-tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --strip-components=1 -C "${CROSS_ROOT}"
+tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
+
+# zlib
 if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
   zlib_latest_url="$(wget -qO- https://api.github.com/repos/madler/zlib/tags | jq -r '.[0].tarball_url')"
   wget -c -O "${SELF_DIR}/zlib.tar.gz" "${zlib_latest_url}"
@@ -88,7 +88,7 @@ make install
 
 # libxml2
 if [ ! -f "${SELF_DIR}/libxml2.tar.gz" ]; then
-  libxml2_latest_url="ftp://xmlsoft.org/libxml2/libxml2-git-snapshot.tar.gz"
+  libxml2_latest_url="ftp://xmlsoft.org/libxml2/LATEST_LIBXML2"
   wget -c -O "${SELF_DIR}/libxml2.tar.gz" "${libxml2_latest_url}"
 fi
 tar -zxf "${SELF_DIR}/libxml2.tar.gz" --strip-components=1 -C /usr/src/libxml2
@@ -104,30 +104,6 @@ if [ ! -f "${SELF_DIR}/sqlite.tar.gz" ]; then
 fi
 tar -zxf "${SELF_DIR}/sqlite.tar.gz" --strip-components=1 -C /usr/src/sqlite
 cd /usr/src/sqlite
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared
-make -j$(nproc)
-make install
-
-# gmplib
-if [ ! -f "${SELF_DIR}/gmp.tar.bz2" ]; then
-  gmp_filename="$(wget -qO- 'https://ftp.gnu.org/gnu/gmp/?C=M;O=D' | grep -o 'href="gmp-.*tar.bz2"' | grep -o '[^"]*gmp-.*tar.bz2' | head -1)"
-  gmp_latest_url="https://ftp.gnu.org/gnu/gmp/${gmp_filename}"
-  wget -c -O "${SELF_DIR}/gmp.tar.bz2" "${gmp_latest_url}"
-fi
-tar -jxf "${SELF_DIR}/gmp.tar.bz2" --strip-components=1 -C /usr/src/gmp
-cd /usr/src/gmp
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules --enable-cxx
-make -j$(nproc)
-make install
-
-# nettle
-if [ ! -f "${SELF_DIR}/nettle.tar.gz" ]; then
-  nettle_filename="$(wget -qO- 'https://ftp.gnu.org/gnu/nettle/?C=M;O=D' | grep -o 'href="nettle-.*tar.gz"' | grep -o '[^"]*nettle-.*tar.gz' | head -1)"
-  nettle_latest_url="https://ftp.gnu.org/gnu/nettle/${nettle_filename}"
-  wget -c -O "${SELF_DIR}/nettle.tar.gz" "${nettle_latest_url}"
-fi
-tar -zxf "${SELF_DIR}/nettle.tar.gz" --strip-components=1 -C /usr/src/nettle
-cd /usr/src/nettle
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared
 make -j$(nproc)
 make install
@@ -194,4 +170,4 @@ make -j$(nproc)
 make install
 
 # get release
-cp "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
+cp -v "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
