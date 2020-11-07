@@ -42,7 +42,7 @@ export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 SELF_DIR="$(dirname "${0}")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
-echo "# Build Info - ${CROSS_HOST}" >"${BUILD_INFO}"
+echo "## Build Info - ${CROSS_HOST}" >"${BUILD_INFO}"
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
 
 # toolchain

@@ -12,6 +12,33 @@ on:
     - cron: "0 0 * * 1"
 
 jobs:
+  create-prerelease:
+    name: Create Prerelease
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set current date as env variable
+        run: echo "NOW=$(date --utc)" >> $GITHUB_ENV
+      - uses: dev-drprasad/delete-tag-and-release@v0.1.2
+        with:
+          delete_release: true
+          tag_name: continuous
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create Prerelease Tag
+        id: create_prerelease_tag
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: continuous
+          release_name: Continuous build
+          draft: false
+          prerelease: true
+          body: |
+            Building time: ${{ env.NOW }}
+            - - -
+
   static-build:
     runs-on: ubuntu-latest
     container: "alpine:latest"
@@ -61,7 +88,7 @@ jobs:
           assets: aria2-${{ matrix.cross_host }}_static.zip
           fail-if-no-assets: false
           fail-if-no-release: false
-      - name: Prerelease Tag
+      - name: Prerelease assets
         if: github.event_name == 'push' || github.event_name == 'schedule'
         uses: softprops/action-gh-release@v1
         env:
@@ -69,6 +96,7 @@ jobs:
         with:
           files: /tmp/aria2-${{ matrix.cross_host }}_static.zip
           prerelease: true
+          draft: false
           tag_name: continuous
           name: Continuous build
           body_path: "${{ github.workspace }}/build_info.md"
