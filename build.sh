@@ -34,8 +34,22 @@ mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/libuv \
   /usr/src/jemalloc \
   /usr/src/aria2
+
 TARGET_ARCH="${CROSS_HOST%%-*}"
-apk add "qemu-${TARGET_ARCH}"
+TARGET_HOST="${CROSS_HOST#*-}"
+case "${TARGET_HOST}" in
+"*mingw*")
+  TARGET_HOST=win
+  apk add wine
+  RUNNER_CHECKER="wine64"
+  ;;
+*)
+  TARGET_HOST=linux
+  apk add "qemu-${TARGET_ARCH}"
+  RUNNER_CHECKER="qemu-${TARGET_ARCH}"
+  ;;
+esac
+
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
 export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
@@ -186,7 +200,7 @@ echo >>"${BUILD_INFO}"
 cp -v "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
 
 echo "============= ARIA2 VER INFO ==================="
-ARIA2_VER_INFO="$(qemu-${TARGET_ARCH} "${CROSS_PREFIX}/bin/"aria2c* --version)"
+ARIA2_VER_INFO="$("${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --version)"
 echo "${ARIA2_VER_INFO}"
 echo "================================================"
 
