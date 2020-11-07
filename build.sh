@@ -34,14 +34,16 @@ mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/libuv \
   /usr/src/jemalloc \
   /usr/src/aria2
+TARGET_ARCH="${CROSS_HOST%%-*}"
+apk add "qemu-${TARGET_ARCH}"
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
 export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
 SELF_DIR="$(dirname "${0}")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
-echo "# Build Info" > "${BUILD_INFO}"
-echo "Building using these dependencies:" >> "${BUILD_INFO}"
+echo "# Build Info - ${CROSS_HOST}" >"${BUILD_INFO}"
+echo "Building using these dependencies:" >>"${BUILD_INFO}"
 
 # toolchain
 [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ] && wget -c -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
@@ -57,7 +59,7 @@ cd /usr/src/zlib
 CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
 make -j$(nproc)
 make install
-echo "- zlib: ${zlib_latest_url:-cached zlib}" >> "${BUILD_INFO}"
+echo "- zlib: ${zlib_latest_url:-cached zlib}" >>"${BUILD_INFO}"
 
 # xz
 if [ ! -f "${SELF_DIR}/xz.tar.gz" ]; then
@@ -69,7 +71,7 @@ cd /usr/src/xz
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
 make -j$(nproc)
 make install
-echo "- xz: ${xz_latest_url:-cached xz}" >> "${BUILD_INFO}"
+echo "- xz: ${xz_latest_url:-cached xz}" >>"${BUILD_INFO}"
 
 # openssl
 if [ ! -f "${SELF_DIR}/openssl.tar.gz" ]; then
@@ -82,7 +84,7 @@ cd /usr/src/openssl
 ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
 make -j$(nproc)
 make install_sw
-echo "- openssl: ${openssl_latest_url:-cached openssl}" >> "${BUILD_INFO}"
+echo "- openssl: ${openssl_latest_url:-cached openssl}" >>"${BUILD_INFO}"
 
 # libxml2
 if [ ! -f "${SELF_DIR}/libxml2.tar.gz" ]; then
@@ -94,7 +96,7 @@ cd /usr/src/libxml2
 CC="${CROSS_HOST}-gcc" ./configure --host="${CROSS_HOST%-musl*}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --without-python --without-icu --enable-static --disable-shared
 make -j$(nproc)
 make install
-echo "- libxml2: ${libxml2_latest_url:-cached libxml2}" >> "${BUILD_INFO}"
+echo "- libxml2: ${libxml2_latest_url:-cached libxml2}" >>"${BUILD_INFO}"
 
 # sqlite
 if [ ! -f "${SELF_DIR}/sqlite.tar.gz" ]; then
@@ -106,7 +108,7 @@ cd /usr/src/sqlite
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared
 make -j$(nproc)
 make install
-echo "- sqlite: ${sqlite_latest_url:-cached sqlite}" >> "${BUILD_INFO}"
+echo "- sqlite: ${sqlite_latest_url:-cached sqlite}" >>"${BUILD_INFO}"
 
 # c-ares
 if [ ! -f "${SELF_DIR}/c-ares.tar.gz" ]; then
@@ -119,7 +121,7 @@ cd /usr/src/c-ares
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
 make -j$(nproc)
 make install
-echo "- c-ares: ${cares_latest_url:-cached c-ares}" >> "${BUILD_INFO}"
+echo "- c-ares: ${cares_latest_url:-cached c-ares}" >>"${BUILD_INFO}"
 
 # libssh2
 if [ ! -f "${SELF_DIR}/libssh2.tar.gz" ]; then
@@ -132,7 +134,7 @@ cd /usr/src/libssh2
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
 make -j$(nproc)
 make install
-echo "- libssh2: ${libssh2_latest_url:-cached libssh2}" >> "${BUILD_INFO}"
+echo "- libssh2: ${libssh2_latest_url:-cached libssh2}" >>"${BUILD_INFO}"
 
 # libuv
 if [ ! -f "${SELF_DIR}/libuv.tar.gz" ]; then
@@ -145,7 +147,7 @@ cd /usr/src/libuv
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
 make -j$(nproc)
 make install
-echo "- libuv: ${libuv_latest_url:-cached libuv}" >> "${BUILD_INFO}"
+echo "- libuv: ${libuv_latest_url:-cached libuv}" >>"${BUILD_INFO}"
 
 # jemalloc
 if [ ! -f "${SELF_DIR}/jemalloc.tar.bz2" ]; then
@@ -158,7 +160,7 @@ cd /usr/src/jemalloc
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared
 make -j$(nproc)
 make install
-echo "- jemalloc: ${jemalloc_latest_url:-cached jemalloc}" >> "${BUILD_INFO}"
+echo "- jemalloc: ${jemalloc_latest_url:-cached jemalloc}" >>"${BUILD_INFO}"
 
 # aria2
 if [ ! -f "${SELF_DIR}/aria2.tar.gz" ]; then
@@ -177,7 +179,18 @@ fi
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes --with-libuv --with-jemalloc
 make -j$(nproc)
 make install
-echo "- aria2: ${aria2_latest_url:-cached aria2}" >> "${BUILD_INFO}"
+echo "- aria2: ${aria2_latest_url:-cached aria2}" >>"${BUILD_INFO}"
+echo >>"${BUILD_INFO}"
 
 # get release
 cp -v "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
+
+echo "============= ARIA2 VER INFO ==================="
+ARIA2_VER_INFO="$(qemu-${TARGET_ARCH} "${CROSS_PREFIX}/bin/"aria2c* --version)"
+echo "${ARIA2_VER_INFO}"
+echo "================================================"
+
+echo "aria2 version info:" >>"${BUILD_INFO}"
+echo '```txt' >>"${BUILD_INFO}"
+echo "${ARIA2_VER_INFO}" >>"${BUILD_INFO}"
+echo '```' >>"${BUILD_INFO}"
