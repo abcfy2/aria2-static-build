@@ -1,3 +1,4 @@
 *.tar*
 *.tgz
 aria2c*
+build_info.md

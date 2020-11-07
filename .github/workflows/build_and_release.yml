@@ -42,7 +42,8 @@ jobs:
           OPENSSL_COMPILER: "${{ matrix.openssl_compiler }}"
         run: |
           if [ "${GITHUB_EVENT_NAME}" = release ]; then
-            export ARIA2_VER="${GITHUB_REF##*/}"
+            export ARIA2_VER="${GITHUB_REF#refs/*/}"
+            echo "ARIA2_VER=${ARIA2_VER}" >> $GITHUB_ENV
           fi
           "${GITHUB_WORKSPACE}/build.sh"
       - name: zip archiving
@@ -70,11 +71,13 @@ jobs:
           prerelease: true
           tag_name: continuous
           name: Continuous build
+          body_path: "${{ github.workspace }}/build_info.md"
       - name: Upload Github Assets
         if: startsWith(github.ref, 'refs/tags/')
-        uses: svenstaro/upload-release-action@v2
+        uses: softprops/action-gh-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          repo_token: ${{ secrets.GITHUB_TOKEN }}
-          file: /tmp/aria2-${{ matrix.cross_host }}_static.zip
-          tag: ${{ github.ref }}
-          overwrite: true
+          files: /tmp/aria2-${{ matrix.cross_host }}_static.zip
+          name: aria2 ${{ env.ARIA2_VER }} static release
+          body_path: "${{ github.workspace }}/build_info.md"
