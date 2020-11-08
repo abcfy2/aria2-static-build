@@ -9,7 +9,6 @@ export LDFLAGS='-s -static --static'
 if [ ! "${CI}" = true ]; then
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/' /etc/apk/repositories
 fi
-apk upgrade
 apk add g++ \
   git \
   make \
@@ -38,9 +37,10 @@ mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
 TARGET_ARCH="${CROSS_HOST%%-*}"
 TARGET_HOST="${CROSS_HOST#*-}"
 case "${TARGET_HOST}" in
-"*mingw*")
+*"mingw"*)
   TARGET_HOST=win
   apk add wine
+  export WINEPREFIX=/tmp/
   RUNNER_CHECKER="wine64"
   ;;
 *)
@@ -70,9 +70,13 @@ if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
 fi
 tar -zxf "${SELF_DIR}/zlib.tar.gz" --strip-components=1 -C /usr/src/zlib
 cd /usr/src/zlib
-CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
-make -j$(nproc)
-make install
+if [ "${TARGET_HOST}" = win ]; then
+  make -f win32/Makefile.gcc BINARY_PATH="${CROSS_PREFIX}/bin" INCLUDE_PATH="${CROSS_PREFIX}/include" LIBRARY_PATH="${CROSS_PREFIX}/lib" SHARED_MODE=0 PREFIX="${CROSS_HOST}-" -j$(nproc) install
+else
+  CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
+  make -j$(nproc)
+  make install
+fi
 echo "- zlib: ${zlib_latest_url:-cached zlib}" >>"${BUILD_INFO}"
 
 # xz
@@ -119,7 +123,11 @@ if [ ! -f "${SELF_DIR}/sqlite.tar.gz" ]; then
 fi
 tar -zxf "${SELF_DIR}/sqlite.tar.gz" --strip-components=1 -C /usr/src/sqlite
 cd /usr/src/sqlite
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared
+if [ ${TARGET_HOST} = win ]; then
+  ln -sf mksourceid.exe mksourceid
+  SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
+fi
+./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared "${SQLITE_EXT_CONF}"
 make -j$(nproc)
 make install
 echo "- sqlite: ${sqlite_latest_url:-cached sqlite}" >>"${BUILD_INFO}"
@@ -145,7 +153,10 @@ if [ ! -f "${SELF_DIR}/libssh2.tar.gz" ]; then
 fi
 tar -zxf "${SELF_DIR}/libssh2.tar.gz" --strip-components=1 -C /usr/src/libssh2
 cd /usr/src/libssh2
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
+if [ "${TARGET_HOST}" = win ]; then
+  LIBSSH2_EXT_CONF='LIBS=-lcrypto -lcrypt32'
+fi
+./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules "${LIBSSH2_EXT_CONF}"
 make -j$(nproc)
 make install
 echo "- libssh2: ${libssh2_latest_url:-cached libssh2}" >>"${BUILD_INFO}"
@@ -171,7 +182,7 @@ if [ ! -f "${SELF_DIR}/jemalloc.tar.bz2" ]; then
 fi
 tar -jxf "${SELF_DIR}/jemalloc.tar.bz2" --strip-components=1 -C /usr/src/jemalloc
 cd /usr/src/jemalloc
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared
+./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared CXXFLAGS='-std=c++11'
 make -j$(nproc)
 make install
 echo "- jemalloc: ${jemalloc_latest_url:-cached jemalloc}" >>"${BUILD_INFO}"
@@ -200,7 +211,7 @@ echo >>"${BUILD_INFO}"
 cp -v "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
 
 echo "============= ARIA2 VER INFO ==================="
-ARIA2_VER_INFO="$("${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --version)"
+ARIA2_VER_INFO="$("${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --version 2>/dev/null)"
 echo "${ARIA2_VER_INFO}"
 echo "================================================"
 
