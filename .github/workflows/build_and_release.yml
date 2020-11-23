@@ -43,6 +43,7 @@ jobs:
     runs-on: ubuntu-latest
     container: "alpine:latest"
     strategy:
+      fail-fast: false
       matrix:
         include:
           # cross toolchain downloads from: https://musl.cc/
