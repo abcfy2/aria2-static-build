@@ -141,10 +141,14 @@ echo "- sqlite: ${sqlite_ver}, source: ${sqlite_latest_url:-cached sqlite}" >>"$
 if [ ! -f "${SELF_DIR}/c-ares.tar.gz" ]; then
   cares_suffix_url="$(wget -qO- https://c-ares.haxx.se/ | grep -o 'href=".*tar.gz"' | grep -o '[^"]*tar.gz')"
   cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
+  # cares_latest_url="https://github.com/c-ares/c-ares/archive/master.tar.gz"
   wget -c -O "${SELF_DIR}/c-ares.tar.gz" "${cares_latest_url}"
 fi
 tar -zxf "${SELF_DIR}/c-ares.tar.gz" --strip-components=1 -C /usr/src/c-ares
 cd /usr/src/c-ares
+if [ ! -f "./configure" ]; then
+  autoreconf -i
+fi
 ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules --disable-tests
 make -j$(nproc)
 make install
