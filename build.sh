@@ -109,7 +109,7 @@ echo "- openssl: ${openssl_ver}, source: ${openssl_latest_url:-cached openssl}" 
 
 # libxml2
 if [ ! -f "${SELF_DIR}/libxml2.tar.gz" ]; then
-  libxml2_latest_url="ftp://xmlsoft.org/libxml2/LATEST_LIBXML2"
+  libxml2_latest_url="http://xmlsoft.org/sources/LATEST_LIBXML2"
   wget -c -O "${SELF_DIR}/libxml2.tar.gz" "${libxml2_latest_url}"
 fi
 tar -zxf "${SELF_DIR}/libxml2.tar.gz" --strip-components=1 -C /usr/src/libxml2
