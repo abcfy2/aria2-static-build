@@ -45,6 +45,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        cross_host:
+          - arm-linux-musleabi
+          - aarch64-linux-musl
+          - mips-linux-musl
+          - mipsel-linux-musl
+          - mips64-linux-musl
+          - x86_64-linux-musl
+          - x86_64-w64-mingw32
+        use_libressl: [0, 1]
         include:
           # cross toolchain downloads from: https://musl.cc/
           # you need to find the name ${cross_host}-cross.tgz
@@ -70,6 +79,7 @@ jobs:
         env:
           CROSS_HOST: "${{ matrix.cross_host }}"
           OPENSSL_COMPILER: "${{ matrix.openssl_compiler }}"
+          USE_LIBRESSL: "${{ matrix.use_libressl }}"
         run: |
           if [ "${GITHUB_EVENT_NAME}" = release ]; then
             export ARIA2_VER="${GITHUB_REF#refs/*/}"
@@ -79,16 +89,23 @@ jobs:
       - name: zip archiving
         env:
           CROSS_HOST: "${{ matrix.cross_host }}"
+          USE_LIBRESSL: "${{ matrix.use_libressl }}"
         run: |
           apk add zip
-          zip -j9v "/tmp/aria2-${CROSS_HOST}_static.zip" "${GITHUB_WORKSPACE}"/aria2c*
+          if [ "${USE_LIBRESSL}" -eq 1 ]; then
+            ARCHIVE_NAME="aria2-${CROSS_HOST}_libressl_static.zip"
+          else
+            ARCHIVE_NAME="aria2-${CROSS_HOST}_static.zip"
+          fi
+          echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
+          zip -j9v "/tmp/${ARCHIVE_NAME}" "${GITHUB_WORKSPACE}"/aria2c*
       - name: Delete old release assets
         if: github.event_name == 'push' || github.event_name == 'schedule'
         uses: mknejp/delete-release-assets@v1
         with:
           token: ${{ github.token }}
           tag: continuous
-          assets: aria2-${{ matrix.cross_host }}_static.zip
+          assets: ${{ env.ARCHIVE_NAME }}
           fail-if-no-assets: false
           fail-if-no-release: false
       - name: Prerelease assets
@@ -97,7 +114,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: /tmp/aria2-${{ matrix.cross_host }}_static.zip
+          files: /tmp/${{ env.ARCHIVE_NAME }}
           prerelease: true
           draft: false
           tag_name: continuous
@@ -109,6 +126,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          files: /tmp/aria2-${{ matrix.cross_host }}_static.zip
+          files: /tmp/${{ env.ARCHIVE_NAME }}
           name: aria2 ${{ env.ARIA2_VER }} static release
           body_path: "${{ github.workspace }}/build_info.md"

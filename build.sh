@@ -26,6 +26,7 @@ apk add g++ \
 mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/xz \
   /usr/src/openssl \
+  /usr/src/libressl \
   /usr/src/libxml2 \
   /usr/src/sqlite \
   /usr/src/c-ares \
@@ -53,7 +54,7 @@ esac
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
 export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-SELF_DIR="$(dirname "${0}")"
+SELF_DIR="$(dirname "$(realpath "${0}")")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
 echo "## Build Info - ${CROSS_HOST}" >"${BUILD_INFO}"
@@ -93,19 +94,35 @@ make install
 xz_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/liblzma.pc")"
 echo "- xz: ${xz_ver}, source: ${xz_latest_url:-cached xz}" >>"${BUILD_INFO}"
 
-# openssl
-if [ ! -f "${SELF_DIR}/openssl.tar.gz" ]; then
-  openssl_filename="$(wget -qO- https://www.openssl.org/source/ | grep -o 'href="openssl-1.*tar.gz"' | grep -o '[^"]*.tar.gz')"
-  openssl_latest_url="https://www.openssl.org/source/${openssl_filename}"
-  wget -c -O "${SELF_DIR}/openssl.tar.gz" "${openssl_latest_url}"
+if [ "${USE_LIBRESSL}" -eq 1 ]; then
+  # libressl
+  if [ ! -f "${SELF_DIR}/libressl.tar.gz" ]; then
+    libressl_filename="$(wget -qO- https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/ | grep -o 'href="libressl-.*tar.gz"' | tail -1 | grep -o '[^"]*.tar.gz')"
+    libressl_latest_url="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
+    wget -c -O "${SELF_DIR}/libressl.tar.gz" "${libressl_latest_url}"
+  fi
+  tar -zxf "${SELF_DIR}/libressl.tar.gz" --strip-components=1 -C /usr/src/libressl
+  cd /usr/src/libressl
+  ./configure --host="${CROSS_HOST%-musl*}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
+  make -j$(nproc)
+  make install_sw
+  libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
+  echo "- libressl: ${libressl_ver}, source: ${libressl_latest_url:-cached libressl}" >>"${BUILD_INFO}"
+else
+  # openssl
+  if [ ! -f "${SELF_DIR}/openssl.tar.gz" ]; then
+    openssl_filename="$(wget -qO- https://www.openssl.org/source/ | grep -o 'href="openssl-1.*tar.gz"' | grep -o '[^"]*.tar.gz')"
+    openssl_latest_url="https://www.openssl.org/source/${openssl_filename}"
+    wget -c -O "${SELF_DIR}/openssl.tar.gz" "${openssl_latest_url}"
+  fi
+  tar -zxf "${SELF_DIR}/openssl.tar.gz" --strip-components=1 -C /usr/src/openssl
+  cd /usr/src/openssl
+  ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
+  make -j$(nproc)
+  make install_sw
+  openssl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
+  echo "- openssl: ${openssl_ver}, source: ${openssl_latest_url:-cached openssl}" >>"${BUILD_INFO}"
 fi
-tar -zxf "${SELF_DIR}/openssl.tar.gz" --strip-components=1 -C /usr/src/openssl
-cd /usr/src/openssl
-./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
-make -j$(nproc)
-make install_sw
-openssl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
-echo "- openssl: ${openssl_ver}, source: ${openssl_latest_url:-cached openssl}" >>"${BUILD_INFO}"
 
 # libxml2
 if [ ! -f "${SELF_DIR}/libxml2.tar.gz" ]; then
