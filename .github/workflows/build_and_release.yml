@@ -72,6 +72,19 @@ jobs:
             openssl_compiler: linux-x86_64
           - cross_host: x86_64-w64-mingw32
             openssl_compiler: mingw64
+        exclude:
+          - cross_host: arm-linux-musleabi
+            use_libressl: 1
+          - cross_host: aarch64-linux-musl
+            use_libressl: 1
+          - cross_host: mips-linux-musl
+            use_libressl: 1
+          - cross_host: mipsel-linux-musl
+            use_libressl: 1
+          - cross_host: mips64-linux-musl
+            use_libressl: 1
+          - cross_host: x86_64-w64-mingw32
+            use_libressl: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v2
