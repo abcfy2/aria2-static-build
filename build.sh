@@ -103,7 +103,12 @@ if [ "${USE_LIBRESSL}" -eq 1 ]; then
   fi
   tar -zxf "${SELF_DIR}/libressl.tar.gz" --strip-components=1 -C /usr/src/libressl
   cd /usr/src/libressl
-  ./configure --host="${CROSS_HOST%-musl*}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
+  case "${CROSS_HOST}" in
+  arm*)
+    LIBRESSL_EXTRA_FLAGS='--disable-asm'
+    ;;
+  esac
+  CC="${CROSS_HOST}"-gcc ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared ${LIBRESSL_EXTRA_FLAGS}
   make -j$(nproc)
   make install_sw
   libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
@@ -117,7 +122,11 @@ else
   fi
   tar -zxf "${SELF_DIR}/openssl.tar.gz" --strip-components=1 -C /usr/src/openssl
   cd /usr/src/openssl
-  ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
+  case "${CROSS_HOST}" in arm*)
+    OPENSSL_EXTRA_FLAGS="-march=armv6"
+    ;;
+  esac
+  ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}" ${OPENSSL_EXTRA_FLAGS}
   make -j$(nproc)
   make install_sw
   openssl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
@@ -250,3 +259,8 @@ echo "aria2 version info:" >>"${BUILD_INFO}"
 echo '```txt' >>"${BUILD_INFO}"
 echo "${ARIA2_VER_INFO}" >>"${BUILD_INFO}"
 echo '```' >>"${BUILD_INFO}"
+
+echo "============= ARIA2 TEST DOWNLOAD =============="
+apk add ca-certificates
+"${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --ca-certificate=/etc/ssl/certs/ca-certificates.crt https://github.com/ -o /tmp/test
+echo "================================================"
