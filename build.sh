@@ -37,6 +37,14 @@ mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
 
 TARGET_ARCH="${CROSS_HOST%%-*}"
 TARGET_HOST="${CROSS_HOST#*-}"
+case "${TARGET_ARCH}" in
+"armel"*)
+  TARGET_ARCH=armel
+  ;;
+"arm"*)
+  TARGET_ARCH=arm
+  ;;
+esac
 case "${TARGET_HOST}" in
 *"mingw"*)
   TARGET_HOST=win
@@ -103,12 +111,7 @@ if [ "${USE_LIBRESSL}" -eq 1 ]; then
   fi
   tar -zxf "${SELF_DIR}/libressl.tar.gz" --strip-components=1 -C /usr/src/libressl
   cd /usr/src/libressl
-  case "${CROSS_HOST}" in
-  arm*)
-    LIBRESSL_EXTRA_FLAGS='--disable-asm'
-    ;;
-  esac
-  CC="${CROSS_HOST}"-gcc ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared ${LIBRESSL_EXTRA_FLAGS}
+  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared ${LIBRESSL_EXTRA_FLAGS}
   make -j$(nproc)
   make install_sw
   libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
@@ -165,10 +168,9 @@ echo "- sqlite: ${sqlite_ver}, source: ${sqlite_latest_url:-cached sqlite}" >>"$
 
 # c-ares
 if [ ! -f "${SELF_DIR}/c-ares.tar.gz" ]; then
-  # cares_suffix_url="$(wget -qO- https://c-ares.haxx.se/ | grep -o 'href=".*tar.gz"' | grep -o '[^"]*tar.gz')"
-  # cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
-  # Use the master branch until https://github.com/c-ares/c-ares/issues/384 has been released
-  cares_latest_url="https://github.com/c-ares/c-ares/archive/main.tar.gz"
+  cares_suffix_url="$(wget -qO- https://c-ares.haxx.se/ | grep -o 'href=".*tar.gz"' | grep -o '[^"]*tar.gz')"
+  cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
+  # cares_latest_url="https://github.com/c-ares/c-ares/archive/main.tar.gz"
   wget -c -O "${SELF_DIR}/c-ares.tar.gz" "${cares_latest_url}"
 fi
 tar -zxf "${SELF_DIR}/c-ares.tar.gz" --strip-components=1 -C /usr/src/c-ares
@@ -262,5 +264,5 @@ echo '```' >>"${BUILD_INFO}"
 
 echo "============= ARIA2 TEST DOWNLOAD =============="
 apk add ca-certificates
-"${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --ca-certificate=/etc/ssl/certs/ca-certificates.crt https://github.com/ -o /tmp/test
+"${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --ca-certificate=/etc/ssl/certs/ca-certificates.crt https://github.com/ -d /tmp -o test
 echo "================================================"
