@@ -70,8 +70,9 @@ jobs:
             openssl_compiler: linux64-mips64
           - cross_host: x86_64-linux-musl
             openssl_compiler: linux-x86_64
+        exclude:
           - cross_host: x86_64-w64-mingw32
-            openssl_compiler: mingw64
+            use_libressl: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v2
@@ -92,7 +93,7 @@ jobs:
           USE_LIBRESSL: "${{ matrix.use_libressl }}"
         run: |
           apk add zip
-          if [ "${USE_LIBRESSL}" -eq 1 ]; then
+          if [ x"${USE_LIBRESSL}" = x"1" ]; then
             ARCHIVE_NAME="aria2-${CROSS_HOST}_libressl_static.zip"
           else
             ARCHIVE_NAME="aria2-${CROSS_HOST}_static.zip"
