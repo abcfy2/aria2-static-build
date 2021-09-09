@@ -75,12 +75,12 @@ tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-c
 
 # zlib
 if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
-  zlib_latest_url="$(wget -qO- https://api.github.com/repos/madler/zlib/tags | jq -r '.[0].tarball_url')"
+  zlib_latest_url="$(wget -qO- https://zlib.net/ | grep -i '\s*<a href=".*"$' | sed -n 2p | awk -F'"' '{print $2}')"
   wget -c -O "${SELF_DIR}/zlib.tar.gz" "${zlib_latest_url}"
 fi
 tar -zxf "${SELF_DIR}/zlib.tar.gz" --strip-components=1 -C /usr/src/zlib
 cd /usr/src/zlib
-if [ "${TARGET_HOST}" = win ]; then
+if [ x"${TARGET_HOST}" = xwin ]; then
   make -f win32/Makefile.gcc BINARY_PATH="${CROSS_PREFIX}/bin" INCLUDE_PATH="${CROSS_PREFIX}/include" LIBRARY_PATH="${CROSS_PREFIX}/lib" SHARED_MODE=0 PREFIX="${CROSS_HOST}-" -j$(nproc) install
 else
   CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
@@ -108,8 +108,8 @@ if [ x"${TARGET_HOST}" != xwin ]; then
   if [ x"${USE_LIBRESSL}" = x1 ]; then
     # libressl
     if [ ! -f "${SELF_DIR}/libressl.tar.gz" ]; then
-      libressl_filename="$(wget -qO- https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/ | grep -o 'href="libressl-.*tar.gz"' | tail -1 | grep -o '[^"]*.tar.gz')"
-      libressl_latest_url="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
+      libressl_filename="$(wget -qO- https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/ | grep -o 'href="libressl-.*tar.gz"' | tail -1 | grep -o '[^"]*.tar.gz')"
+      libressl_latest_url="https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
       # libressl_latest_url="https://github.com/libressl-portable/portable/archive/refs/heads/master.tar.gz"
       wget -c -O "${SELF_DIR}/libressl.tar.gz" "${libressl_latest_url}"
     fi
