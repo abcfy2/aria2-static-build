@@ -62,7 +62,7 @@ esac
 
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
-export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${CROSS_PREFIX}/lib64/pkgconfig:${CROSS_PREFIX}/lib32/pkgconfig:${PKG_CONFIG_PATH}"
 SELF_DIR="$(dirname "$(realpath "${0}")")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
@@ -126,7 +126,7 @@ if [ x"${TARGET_HOST}" != xwin ]; then
   else
     # openssl
     if [ ! -f "${SELF_DIR}/openssl.tar.gz" ]; then
-      openssl_filename="$(wget -qO- https://www.openssl.org/source/ | grep -o 'href="openssl-1.*tar.gz"' | grep -o '[^"]*.tar.gz')"
+      openssl_filename="$(wget -qO- https://www.openssl.org/source/ | grep -o 'href="openssl-3.*tar.gz"' | grep -o '[^"]*.tar.gz')"
       openssl_latest_url="https://www.openssl.org/source/${openssl_filename}"
       wget -c -O "${SELF_DIR}/openssl.tar.gz" "${openssl_latest_url}"
     fi
@@ -135,7 +135,7 @@ if [ x"${TARGET_HOST}" != xwin ]; then
     ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
     make -j$(nproc)
     make install_sw
-    openssl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
+    openssl_ver="$(grep Version: "${CROSS_PREFIX}"/lib*/pkgconfig/openssl.pc)"
     echo "- openssl: ${openssl_ver}, source: ${openssl_latest_url:-cached openssl}" >>"${BUILD_INFO}"
   fi
 fi
