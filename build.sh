@@ -269,6 +269,9 @@ echo "${ARIA2_VER_INFO}" >>"${BUILD_INFO}"
 echo '```' >>"${BUILD_INFO}"
 
 echo "============= ARIA2 TEST DOWNLOAD =============="
-# Some tests failed, but I have no time to fix it, so just force pass
-"${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* https://github.com/ -d /tmp -o test || true
+# Seems wine does not support WinTLS until now, which will cause wine aria2c.exe be failed.
+# But in fact it works in real Windows, so I just skip Windows test.
+if [ x"${TARGET_HOST}" != xwin ]; then
+  "${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* https://github.com/ -d /tmp -o test
+fi
 echo "================================================"

@@ -53,7 +53,10 @@ jobs:
           - mips64-linux-musl
           - x86_64-linux-musl
           - x86_64-w64-mingw32
-        use_libressl: [0, 1]
+        use_libressl:
+          - 0
+          # Wait until high version libressl support: https://github.com/aria2/aria2/issues/1816
+          # - 1
         include:
           # cross toolchain downloads from: https://musl.cc/
           # you need to find the name ${cross_host}-cross.tgz
