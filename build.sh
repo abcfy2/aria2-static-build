@@ -5,7 +5,7 @@ export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
 # value from openssl source: ./Configure LIST
 export OPENSSL_COMPILER="${OPENSSL_COMPILER:-linux-armv4}"
 export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
-export LDFLAGS='-s -static --static'
+export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 if [ ! "${CI}" = true ]; then
   sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/' /etc/apk/repositories
 fi
@@ -25,6 +25,7 @@ apk add g++ \
   gettext-dev \
   ca-certificates-bundle
 mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
+  /usr/src/zlib-ng \
   /usr/src/xz \
   /usr/src/openssl \
   /usr/src/libressl \
@@ -62,7 +63,8 @@ esac
 
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
-export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib/pkgconfig:${CROSS_PREFIX}/lib64/pkgconfig:${CROSS_PREFIX}/lib32/pkgconfig:${PKG_CONFIG_PATH}"
+export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib64/pkgconfig:${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export LDFLAGS="-L${CROSS_PREFIX}/lib64 -L${CROSS_PREFIX}/lib -s -static --static"
 SELF_DIR="$(dirname "$(realpath "${0}")")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
@@ -74,21 +76,37 @@ echo "Building using these dependencies:" >>"${BUILD_INFO}"
 tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
 
 # zlib
-if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
-  zlib_latest_url="$(wget -qO- https://zlib.net/ | grep -i '\s*<a href=".*"$' | sed -n 2p | awk -F'"' '{print $2}')"
-  wget -c -O "${SELF_DIR}/zlib.tar.gz" "${zlib_latest_url}"
-fi
-tar -zxf "${SELF_DIR}/zlib.tar.gz" --strip-components=1 -C /usr/src/zlib
-cd /usr/src/zlib
-if [ x"${TARGET_HOST}" = xwin ]; then
-  make -f win32/Makefile.gcc BINARY_PATH="${CROSS_PREFIX}/bin" INCLUDE_PATH="${CROSS_PREFIX}/include" LIBRARY_PATH="${CROSS_PREFIX}/lib" SHARED_MODE=0 PREFIX="${CROSS_HOST}-" -j$(nproc) install
-else
-  CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
+if [ x"${USE_ZLIB_NG}" = x"1" ]; then
+  if [ ! -f "${SELF_DIR}/zlib-ng.tar.gz" ]; then
+    zlib_ng_latest_url="$(wget -qO- https://api.github.com/repos/zlib-ng/zlib-ng/releases | jq -r '.[0].tarball_url')"
+    wget -c -O "${SELF_DIR}/zlib-ng.tar.gz" "${zlib_ng_latest_url}"
+  fi
+  tar -zxf "${SELF_DIR}/zlib-ng.tar.gz" --strip-components=1 -C /usr/src/zlib-ng
+  cd /usr/src/zlib-ng
+  CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static --zlib-compat
   make -j$(nproc)
   make install
+  zlib_ng_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc")"
+  echo "- zlib-ng: ${zlib_ng_ver}, source: ${zlib_ng_latest_url:-cached zlib-ng}" >>"${BUILD_INFO}"
+  # Fix mingw build sharedlibdir lost issue
+  sed -i 's@^sharedlibdir=.*@sharedlibdir=${libdir}@' "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc"
+else
+  if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
+    zlib_latest_url="$(wget -qO- https://zlib.net/ | grep -i '\s*<a href=".*"$' | sed -n 2p | awk -F'"' '{print $2}')"
+    wget -c -O "${SELF_DIR}/zlib.tar.gz" "${zlib_latest_url}"
+  fi
+  tar -zxf "${SELF_DIR}/zlib.tar.gz" --strip-components=1 -C /usr/src/zlib
+  cd /usr/src/zlib
+  if [ x"${TARGET_HOST}" = xwin ]; then
+    make -f win32/Makefile.gcc BINARY_PATH="${CROSS_PREFIX}/bin" INCLUDE_PATH="${CROSS_PREFIX}/include" LIBRARY_PATH="${CROSS_PREFIX}/lib" SHARED_MODE=0 PREFIX="${CROSS_HOST}-" -j$(nproc) install
+  else
+    CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
+    make -j$(nproc)
+    make install
+  fi
+  zlib_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc")"
+  echo "- zlib: ${zlib_ver}, source: ${zlib_latest_url:-cached zlib}" >>"${BUILD_INFO}"
 fi
-zlib_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc")"
-echo "- zlib: ${zlib_ver}, source: ${zlib_latest_url:-cached zlib}" >>"${BUILD_INFO}"
 
 # xz
 if [ ! -f "${SELF_DIR}/xz.tar.gz" ]; then
@@ -272,6 +290,6 @@ echo "============= ARIA2 TEST DOWNLOAD =============="
 # Seems wine does not support WinTLS until now, which will cause wine aria2c.exe be failed.
 # But in fact it works in real Windows, so I just skip Windows test.
 if [ x"${TARGET_HOST}" != xwin ]; then
-  "${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* https://github.com/ -d /tmp -o test
+  "${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/"aria2c* --http-accept-gzip=true https://github.com/ -d /tmp -o test
 fi
 echo "================================================"
