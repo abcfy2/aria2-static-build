@@ -3,7 +3,26 @@
 # value from: https://musl.cc/ (without -cross or -native)
 export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
 # value from openssl source: ./Configure LIST
-export OPENSSL_COMPILER="${OPENSSL_COMPILER:-linux-armv4}"
+case "${CROSS_HOST}" in
+arm-linux*)
+  export OPENSSL_COMPILER=linux-armv4
+  ;;
+aarch64-linux*)
+  export OPENSSL_COMPILER=linux-aarch64
+  ;;
+mips-linux* | mipsel-linux*)
+  export OPENSSL_COMPILER=linux-mips32
+  ;;
+mips64-linux*)
+  export OPENSSL_COMPILER=linux-mips64
+  ;;
+x86_64-linux*)
+  export OPENSSL_COMPILER=linux-x86_64
+  ;;
+*)
+  export OPENSSL_COMPILER=gcc
+  ;;
+esac
 export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 if [ ! "${CI}" = true ]; then
@@ -178,7 +197,7 @@ if [ ! -f "${SELF_DIR}/sqlite.tar.gz" ]; then
 fi
 tar -zxf "${SELF_DIR}/sqlite.tar.gz" --strip-components=1 -C /usr/src/sqlite
 cd /usr/src/sqlite
-if [ ${TARGET_HOST} = win ]; then
+if [ x"${TARGET_HOST}" = x"win" ]; then
   ln -sf mksourceid.exe mksourceid
   SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
 fi

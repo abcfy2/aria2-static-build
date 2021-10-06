@@ -54,22 +54,6 @@ jobs:
           - x86_64-linux-musl
           - x86_64-w64-mingw32
         use_libressl: [0, 1]
-        include:
-          # cross toolchain downloads from: https://musl.cc/
-          # you need to find the name ${cross_host}-cross.tgz
-          # openssl_compiler choose from openssl source directory `./Configure LIST`
-          - cross_host: arm-linux-musleabi
-            openssl_compiler: linux-armv4
-          - cross_host: aarch64-linux-musl
-            openssl_compiler: linux-aarch64
-          - cross_host: mips-linux-musl
-            openssl_compiler: linux-mips32
-          - cross_host: mipsel-linux-musl
-            openssl_compiler: linux-mips32
-          - cross_host: mips64-linux-musl
-            openssl_compiler: linux64-mips64
-          - cross_host: x86_64-linux-musl
-            openssl_compiler: linux-x86_64
         exclude:
           - cross_host: x86_64-w64-mingw32
             use_libressl: 1
