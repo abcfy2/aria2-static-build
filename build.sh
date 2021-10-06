@@ -14,7 +14,7 @@ mips-linux* | mipsel-linux*)
   export OPENSSL_COMPILER=linux-mips32
   ;;
 mips64-linux*)
-  export OPENSSL_COMPILER=linux-mips64
+  export OPENSSL_COMPILER=linux64-mips64
   ;;
 x86_64-linux*)
   export OPENSSL_COMPILER=linux-x86_64
