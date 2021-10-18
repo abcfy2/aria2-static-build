@@ -1,3 +1,5 @@
+name: 'Build and Release'
+
 on:
   push:
     branches:
@@ -41,7 +43,7 @@ jobs:
 
   static-build:
     runs-on: ubuntu-latest
-    container: "alpine:3.13"
+    container: "alpine"
     strategy:
       fail-fast: false
       matrix:

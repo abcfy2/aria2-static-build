@@ -239,34 +239,6 @@ make install
 libssh2_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libssh2.pc")"
 echo "- libssh2: ${libssh2_ver}, source: ${libssh2_latest_url:-cached libssh2}" >>"${BUILD_INFO}"
 
-# libuv
-if [ ! -f "${SELF_DIR}/libuv.tar.gz" ]; then
-  libuv_latest_url="$(wget -qO- https://api.github.com/repos/libuv/libuv/tags | jq -r '.[0].tarball_url')"
-  wget -c -O "${SELF_DIR}/libuv.tar.gz" "${libuv_latest_url}"
-fi
-tar -zxf "${SELF_DIR}/libuv.tar.gz" --strip-components=1 -C /usr/src/libuv
-cd /usr/src/libuv
-./autogen.sh
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
-make -j$(nproc)
-make install
-libuv_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libuv.pc")"
-echo "- libuv: ${libuv_ver}, source: ${libuv_latest_url:-cached libuv}" >>"${BUILD_INFO}"
-
-# jemalloc
-if [ ! -f "${SELF_DIR}/jemalloc.tar.bz2" ]; then
-  jemalloc_tag="$(wget -qO- https://api.github.com/repos/jemalloc/jemalloc/tags | jq -r '.[0].name')"
-  jemalloc_latest_url="https://github.com/jemalloc/jemalloc/releases/download/${jemalloc_tag}/jemalloc-${jemalloc_tag}.tar.bz2"
-  wget -c -O "${SELF_DIR}/jemalloc.tar.bz2" "${jemalloc_latest_url}"
-fi
-tar -jxf "${SELF_DIR}/jemalloc.tar.bz2" --strip-components=1 -C /usr/src/jemalloc
-cd /usr/src/jemalloc
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared CXXFLAGS='-std=c++11'
-make -j$(nproc)
-make install
-jemalloc_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/jemalloc.pc")"
-echo "- jemalloc: ${jemalloc_ver}, source: ${jemalloc_latest_url:-cached jemalloc}" >>"${BUILD_INFO}"
-
 # aria2
 if [ ! -f "${SELF_DIR}/aria2.tar.gz" ]; then
   if [ -n "${ARIA2_VER}" ]; then
@@ -286,7 +258,7 @@ if [ x"${TARGET_HOST}" = xwin ]; then
 else
   ARIA2_EXT_CONF='--with-ca-bundle=/etc/ssl/certs/ca-certificates.crt'
 fi
-./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes --with-libuv --with-jemalloc ${ARIA2_EXT_CONF}
+./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes ${ARIA2_EXT_CONF}
 make -j$(nproc)
 make install
 echo "- aria2: source: ${aria2_latest_url:-cached aria2}" >>"${BUILD_INFO}"
