@@ -96,7 +96,8 @@ retry() {
   # sleep 3s every retry
   sleep_time=3
   for i in $(seq ${try}); do
-    if $@; then
+    echo "executing with retry: $@" >&2
+    if eval "$@"; then
       return 0
     else
       echo "execute '$@' failed, tries: ${i}" >&2
@@ -110,7 +111,7 @@ retry() {
 prepare_toolchain() {
   # toolchain
   [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ] &&
-    retry wget -c -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
+    retry wget -c -O \"${SELF_DIR}/${CROSS_HOST}-cross.tgz\" "http://musl.cc/${CROSS_HOST}-cross.tgz"
   tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
 }
 
@@ -118,7 +119,7 @@ prepare_zlib() {
   # zlib
   if [ x"${USE_ZLIB_NG}" = x"1" ]; then
     if [ ! -f "${SELF_DIR}/zlib-ng.tar.gz" ]; then
-      zlib_ng_latest_url="$(retry wget -qO- https://api.github.com/repos/zlib-ng/zlib-ng/releases | jq -r '.[0].tarball_url')"
+      zlib_ng_latest_url="$(retry wget -qO- https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tarball_url'")"
       retry wget -c -O "${SELF_DIR}/zlib-ng.tar.gz" "${zlib_ng_latest_url}"
     fi
     tar -zxf "${SELF_DIR}/zlib-ng.tar.gz" --strip-components=1 -C /usr/src/zlib-ng
@@ -132,7 +133,7 @@ prepare_zlib() {
     sed -i 's@^sharedlibdir=.*@sharedlibdir=${libdir}@' "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc"
   else
     if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
-      zlib_latest_url="$(retry wget -qO- https://zlib.net/ | grep -i '\s*<a href=".*"$' | sed -n 2p | awk -F'"' '{print $2}')"
+      zlib_latest_url="$(retry wget -qO- https://zlib.net/ \| grep -i "'\s*<a href=\".*\"$'" \| sed -n 2p \| awk -F'\"' "'{print \$2}'")"
       retry wget -c -O "${SELF_DIR}/zlib.tar.gz" "${zlib_latest_url}"
     fi
     tar -zxf "${SELF_DIR}/zlib.tar.gz" --strip-components=1 -C /usr/src/zlib
@@ -170,7 +171,7 @@ prepare_ssl() {
     if [ x"${USE_LIBRESSL}" = x1 ]; then
       # libressl
       if [ ! -f "${SELF_DIR}/libressl.tar.gz" ]; then
-        libressl_filename="$(retry wget -qO- https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/ | grep -o 'href="libressl-.*tar.gz"' | tail -1 | grep -o '[^"]*.tar.gz')"
+        libressl_filename="$(retry wget -qO- https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/ \| grep -o "'href=\"libressl-.*tar.gz\"'" \| tail -1 \| grep -o "'[^\"]*.tar.gz'")"
         libressl_latest_url="https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
         # libressl_latest_url="https://github.com/libressl-portable/portable/archive/refs/heads/master.tar.gz"
         retry wget -c -O "${SELF_DIR}/libressl.tar.gz" "${libressl_latest_url}"
@@ -188,7 +189,7 @@ prepare_ssl() {
     else
       # openssl
       if [ ! -f "${SELF_DIR}/openssl.tar.gz" ]; then
-        openssl_filename="$(retry wget -qO- https://www.openssl.org/source/ | grep -o 'href="openssl-3.*tar.gz"' | grep -o '[^"]*.tar.gz')"
+        openssl_filename="$(retry wget -qO- https://www.openssl.org/source/ \| grep -o "'href=\"openssl-3.*tar.gz\"'" \| grep -o "'[^\"]*.tar.gz'")"
         openssl_latest_url="https://www.openssl.org/source/${openssl_filename}"
         retry wget -c -O "${SELF_DIR}/openssl.tar.gz" "${openssl_latest_url}"
       fi
@@ -240,7 +241,7 @@ prepare_sqlite() {
 prepare_c_ares() {
   # c-ares
   if [ ! -f "${SELF_DIR}/c-ares.tar.gz" ]; then
-    cares_suffix_url="$(retry wget -qO- https://c-ares.haxx.se/ | grep -o 'href=".*tar.gz"' | grep -o '[^"]*tar.gz')"
+    cares_suffix_url="$(retry wget -qO- https://c-ares.haxx.se/ \| grep -o "'href=\".*tar.gz\"'" \| grep -o "'[^\"]*tar.gz'")"
     cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
     # cares_latest_url="https://github.com/c-ares/c-ares/archive/main.tar.gz"
     retry wget -c -O "${SELF_DIR}/c-ares.tar.gz" "${cares_latest_url}"
@@ -260,7 +261,7 @@ prepare_c_ares() {
 prepare_libssh2() {
   # libssh2
   if [ ! -f "${SELF_DIR}/libssh2.tar.gz" ]; then
-    libssh2_suffix_url="$(retry wget -qO- https://www.libssh2.org/ | grep -o 'href=".*tar.gz"' | grep -o '[^"]*libssh2.*tar.gz')"
+    libssh2_suffix_url="$(retry wget -qO- https://www.libssh2.org/ \| grep -o "'href=\".*tar.gz\"'" \| grep -o "'[^\"]*libssh2.*tar.gz'")"
     libssh2_latest_url="https://www.libssh2.org/${libssh2_suffix_url}"
     retry wget -c -O "${SELF_DIR}/libssh2.tar.gz" "${libssh2_latest_url}"
   fi
