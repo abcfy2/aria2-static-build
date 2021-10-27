@@ -241,9 +241,9 @@ prepare_sqlite() {
 prepare_c_ares() {
   # c-ares
   if [ ! -f "${SELF_DIR}/c-ares.tar.gz" ]; then
-    cares_suffix_url="$(retry wget -qO- https://c-ares.haxx.se/ \| grep -o "'href=\".*tar.gz\"'" \| grep -o "'[^\"]*tar.gz'")"
-    cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
-    # cares_latest_url="https://github.com/c-ares/c-ares/archive/main.tar.gz"
+    # cares_suffix_url="$(retry wget -qO- https://c-ares.haxx.se/ \| grep -o "'href=\".*tar.gz\"'" \| grep -o "'[^\"]*tar.gz'")"
+    # cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
+    cares_latest_url="https://github.com/c-ares/c-ares/archive/main.tar.gz"
     retry wget -c -O "${SELF_DIR}/c-ares.tar.gz" "${cares_latest_url}"
   fi
   tar -zxf "${SELF_DIR}/c-ares.tar.gz" --strip-components=1 -C /usr/src/c-ares
