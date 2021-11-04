@@ -8,6 +8,16 @@ You can downloads from release pages.
 
 Continuous build: https://github.com/abcfy2/aria2-static-build/releases/tag/continuous
 
+> **NOTE**: If you were executed in Android environment (maybe x86_64, arm, or aarch64), please follow the official aria2 Android README: https://github.com/aria2/aria2/blob/master/README.android
+>
+> Here is a sample:
+>
+> ```sh
+> cat /etc/security/cacerts/* | ./aria2c --async-dns-server=1.1.1.1 https://github.com/
+> ```
+>
+> Please note `getprop net.dns1` does not work since Android 8, so you have to set a valid DNS manually.
+
 ## Build locally yourself
 
 Requirements:
