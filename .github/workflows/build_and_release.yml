@@ -43,7 +43,7 @@ jobs:
 
   static-build:
     runs-on: ubuntu-latest
-    container: "alpine"
+    container: "alpine:3.14"
     strategy:
       fail-fast: false
       matrix:
