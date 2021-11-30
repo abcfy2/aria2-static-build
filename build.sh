@@ -1,4 +1,6 @@
-#!/bin/sh -e
+#!/bin/bash -e
+
+set -o pipefail
 
 # value from: https://musl.cc/ (without -cross or -native)
 export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
@@ -25,24 +27,33 @@ x86_64-linux*)
 esac
 export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
-if [ ! "${CI}" = true ]; then
-  sed -i 's/dl-cdn.alpinelinux.org/mirrors.aliyun.com/' /etc/apk/repositories
+
+# Ubuntu mirror for local building
+if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+  source /etc/os-release
+  cat >/etc/apt/sources.list <<EOF
+deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
+deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
+deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse
+deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse
+EOF
 fi
-apk add g++ \
-  git \
+
+export DEBIAN_FRONTEND=noninteractive
+
+apt update
+apt install -y g++ \
   make \
   libtool \
-  tar \
   jq \
-  pkgconfig \
+  pkgconf \
   file \
-  perl \
   tcl \
   autoconf \
   automake \
+  autopoint \
   patch \
-  gettext-dev \
-  ca-certificates-bundle
+  wget
 mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
   /usr/src/zlib-ng \
   /usr/src/xz \
@@ -69,14 +80,14 @@ esac
 case "${TARGET_HOST}" in
 *"mingw"*)
   TARGET_HOST=win
-  apk add wine
+  apt install -y wine
   export WINEPREFIX=/tmp/
-  RUNNER_CHECKER="wine64"
+  RUNNER_CHECKER="wine"
   ;;
 *)
   TARGET_HOST=linux
-  apk add "qemu-${TARGET_ARCH}"
-  RUNNER_CHECKER="qemu-${TARGET_ARCH}"
+  apt install -y "qemu-user-static"
+  RUNNER_CHECKER="qemu-${TARGET_ARCH}-static"
   ;;
 esac
 
@@ -119,7 +130,11 @@ prepare_zlib() {
   # zlib
   if [ x"${USE_ZLIB_NG}" = x"1" ]; then
     if [ ! -f "${SELF_DIR}/zlib-ng.tar.gz" ]; then
-      zlib_ng_latest_url="$(retry wget -qO- https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tarball_url'")"
+      zlib_ng_latest_tag="$(retry wget -qO- https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tag_name'")"
+      zlib_ng_latest_url="https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${zlib_ng_latest_tag}.tar.gz"
+      if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+        zlib_ng_latest_url="https://ghproxy.com/${zlib_ng_latest_url}"
+      fi
       retry wget -c -O "${SELF_DIR}/zlib-ng.tar.gz" "${zlib_ng_latest_url}"
     fi
     tar -zxf "${SELF_DIR}/zlib-ng.tar.gz" --strip-components=1 -C /usr/src/zlib-ng
@@ -158,7 +173,7 @@ prepare_xz() {
   fi
   tar -zxf "${SELF_DIR}/xz.tar.gz" --strip-components=1 -C /usr/src/xz
   cd /usr/src/xz
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
+  ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
   make -j$(nproc)
   make install
   xz_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/liblzma.pc")"
@@ -171,8 +186,8 @@ prepare_ssl() {
     if [ x"${USE_LIBRESSL}" = x1 ]; then
       # libressl
       if [ ! -f "${SELF_DIR}/libressl.tar.gz" ]; then
-        libressl_filename="$(retry wget -qO- https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/ \| grep -o "'href=\"libressl-.*tar.gz\"'" \| tail -1 \| grep -o "'[^\"]*.tar.gz'")"
-        libressl_latest_url="https://cdn.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
+        libressl_filename="$(retry wget -qO- https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/ \| grep -o "'href=\"libressl-.*tar.gz\"'" \| tail -1 \| grep -o "'[^\"]*.tar.gz'")"
+        libressl_latest_url="https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
         # libressl_latest_url="https://github.com/libressl-portable/portable/archive/refs/heads/master.tar.gz"
         retry wget -c -O "${SELF_DIR}/libressl.tar.gz" "${libressl_latest_url}"
       fi
@@ -181,7 +196,7 @@ prepare_ssl() {
       if [ ! -f "./configure" ]; then
         ./autogen.sh
       fi
-      ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
+      ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
       make -j$(nproc)
       make install_sw
       libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
@@ -212,7 +227,7 @@ prepare_libxml2() {
   fi
   tar -zxf "${SELF_DIR}/libxml2.tar.gz" --strip-components=1 -C /usr/src/libxml2
   cd /usr/src/libxml2
-  CC="${CROSS_HOST}-gcc" ./configure --host="${CROSS_HOST%-musl*}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --without-python --without-icu --enable-static --disable-shared
+  ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --without-python --without-icu --enable-static --disable-shared
   make -j$(nproc)
   make install
   libxml2_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/"libxml-*.pc)"
@@ -223,6 +238,9 @@ prepare_sqlite() {
   # sqlite
   if [ ! -f "${SELF_DIR}/sqlite.tar.gz" ]; then
     sqlite_latest_url="https://github.com/sqlite/sqlite/archive/release.tar.gz"
+    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+      sqlite_latest_url="https://ghproxy.com/${sqlite_latest_url}"
+    fi
     retry wget -c -O "${SELF_DIR}/sqlite.tar.gz" "${sqlite_latest_url}"
   fi
   tar -zxf "${SELF_DIR}/sqlite.tar.gz" --strip-components=1 -C /usr/src/sqlite
@@ -231,7 +249,7 @@ prepare_sqlite() {
     ln -sf mksourceid.exe mksourceid
     SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
   fi
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared "${SQLITE_EXT_CONF}"
+  ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared ${SQLITE_EXT_CONF}
   make -j$(nproc)
   make install
   sqlite_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/"sqlite*.pc)"
@@ -251,7 +269,7 @@ prepare_c_ares() {
   if [ ! -f "./configure" ]; then
     autoreconf -i
   fi
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules --disable-tests
+  ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules --disable-tests
   make -j$(nproc)
   make install
   cares_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libcares.pc")"
@@ -267,7 +285,7 @@ prepare_libssh2() {
   fi
   tar -zxf "${SELF_DIR}/libssh2.tar.gz" --strip-components=1 -C /usr/src/libssh2
   cd /usr/src/libssh2
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules #"${LIBSSH2_EXT_CONF}"
+  ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
   make -j$(nproc)
   make install
   libssh2_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libssh2.pc")"
@@ -282,6 +300,9 @@ build_aria2() {
     else
       aria2_latest_url="https://github.com/aria2/aria2/archive/master.tar.gz"
     fi
+    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+      aria2_latest_url="https://ghproxy.com/${aria2_latest_url}"
+    fi
     retry wget -c -O "${SELF_DIR}/aria2.tar.gz" "${aria2_latest_url}"
   fi
   tar -zxf "${SELF_DIR}/aria2.tar.gz" --strip-components=1 -C /usr/src/aria2
@@ -294,7 +315,7 @@ build_aria2() {
   else
     ARIA2_EXT_CONF='--with-ca-bundle=/etc/ssl/certs/ca-certificates.crt'
   fi
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes ${ARIA2_EXT_CONF}
+  ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes ${ARIA2_EXT_CONF}
   make -j$(nproc)
   make install
   echo "- aria2: source: ${aria2_latest_url:-cached aria2}" >>"${BUILD_INFO}"

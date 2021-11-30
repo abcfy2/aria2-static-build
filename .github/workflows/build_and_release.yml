@@ -43,7 +43,7 @@ jobs:
 
   static-build:
     runs-on: ubuntu-latest
-    container: "alpine:3.14"
+    container: "ubuntu"
     strategy:
       fail-fast: false
       matrix:
@@ -78,7 +78,7 @@ jobs:
           CROSS_HOST: "${{ matrix.cross_host }}"
           USE_LIBRESSL: "${{ matrix.use_libressl }}"
         run: |
-          apk add zip
+          apt install -y zip
           if [ x"${USE_LIBRESSL}" = x"1" ]; then
             ARCHIVE_NAME="aria2-${CROSS_HOST}_libressl_static.zip"
           else

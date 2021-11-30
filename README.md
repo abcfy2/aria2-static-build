@@ -25,7 +25,7 @@ Requirements:
 - docker
 
 ```sh
-docker run --rm -v `pwd`:/build alpine /build/build.sh
+docker run --rm -v `pwd`:/build ubuntu /build/build.sh
 ```
 
 Cached build dependencies, `build_info.md` and `aria2c` will be found in current directory.
@@ -33,7 +33,7 @@ Cached build dependencies, `build_info.md` and `aria2c` will be found in current
 You can set more optional environment variables in `docker` command like:
 
 ```sh
-docker run --rm -v `pwd`:/build -e CROSS_HOST=x86_64-linux-musl -e USE_ZLIB_NG=0 -e USE_LIBRESSL=1 alpine /build/build.sh
+docker run --rm -v `pwd`:/build -e CROSS_HOST=x86_64-linux-musl -e USE_ZLIB_NG=0 -e USE_LIBRESSL=1 ubuntu /build/build.sh
 ```
 
 Optional environment variables:
