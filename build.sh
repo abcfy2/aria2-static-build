@@ -186,9 +186,12 @@ prepare_ssl() {
     if [ x"${USE_LIBRESSL}" = x1 ]; then
       # libressl
       if [ ! -f "${SELF_DIR}/libressl.tar.gz" ]; then
-        libressl_filename="$(retry wget -qO- https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/ \| grep -o "'href=\"libressl-.*tar.gz\"'" \| tail -1 \| grep -o "'[^\"]*.tar.gz'")"
-        libressl_latest_url="https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/${libressl_filename}"
-        # libressl_latest_url="https://github.com/libressl-portable/portable/archive/refs/heads/master.tar.gz"
+        LIBRESSL_DOWNLOAD_URL_ROOT='https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/'
+        if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+          LIBRESSL_DOWNLOAD_URL_ROOT='https://mirror.sjtu.edu.cn/OpenBSD/LibreSSL/'
+        fi
+        libressl_filename="$(retry wget -qO- "${LIBRESSL_DOWNLOAD_URL_ROOT}" \| grep -o "'href=\".*libressl-.*tar.gz\"'" \| tail -1 \| grep -o "'[^\"]*.tar.gz'")"
+        libressl_latest_url="${LIBRESSL_DOWNLOAD_URL_ROOT}${libressl_filename}"
         retry wget -c -O "${SELF_DIR}/libressl.tar.gz" "${libressl_latest_url}"
       fi
       tar -zxf "${SELF_DIR}/libressl.tar.gz" --strip-components=1 -C /usr/src/libressl
