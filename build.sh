@@ -212,11 +212,11 @@ prepare_ssl() {
       openssl_filename="$(retry wget -qO- --compression=auto https://www.openssl.org/source/ \| grep -o "'href=\"openssl-3.*tar.gz\"'" \| grep -o "'[^\"]*.tar.gz'")"
       openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
       if [ ! -f "${SELF_DIR}/openssl-${openssl_ver}.tar.gz" ]; then
-        openssl_download_url="https://github.com/openssl/openssl/archive/refs/tags/${openssl_filename}"
+        openssl_latest_url="https://github.com/openssl/openssl/archive/refs/tags/${openssl_filename}"
         if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-          openssl_download_url="https://ghproxy.com/${openssl_download_url}"
+          openssl_latest_url="https://ghproxy.com/${openssl_latest_url}"
         fi
-        retry wget -cT10 -O "${SELF_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_download_url}"
+        retry wget -cT10 -O "${SELF_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_latest_url}"
         mv -fv "${SELF_DIR}/openssl-${openssl_ver}.tar.gz.part" "${SELF_DIR}/openssl-${openssl_ver}.tar.gz"
       fi
       mkdir -p "/usr/src/openssl-${openssl_ver}"
