@@ -29,14 +29,12 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Prerelease Tag
         id: create_prerelease_tag
-        uses: actions/create-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@v1
         with:
-          tag_name: continuous
-          release_name: Continuous build
-          draft: false
           prerelease: true
+          draft: false
+          tag_name: continuous
+          name: Continuous build
           body: |
             Building time: ${{ env.NOW }}
             - - -
@@ -61,7 +59,7 @@ jobs:
             use_libressl: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: compile
         env:
           CROSS_HOST: "${{ matrix.cross_host }}"
@@ -86,20 +84,9 @@ jobs:
           fi
           echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
           zip -j9v "/tmp/${ARCHIVE_NAME}" "${GITHUB_WORKSPACE}"/aria2c*
-      - name: Delete old release assets
-        if: github.event_name == 'push' || github.event_name == 'schedule'
-        uses: mknejp/delete-release-assets@v1
-        with:
-          token: ${{ github.token }}
-          tag: continuous
-          assets: ${{ env.ARCHIVE_NAME }}
-          fail-if-no-assets: false
-          fail-if-no-release: false
       - name: Prerelease assets
         if: github.event_name == 'push' || github.event_name == 'schedule'
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@master
         with:
           files: /tmp/${{ env.ARCHIVE_NAME }}
           prerelease: true
@@ -107,12 +94,12 @@ jobs:
           tag_name: continuous
           name: Continuous build
           body_path: "${{ github.workspace }}/build_info.md"
+          append_body: true
       - name: Upload Github Assets
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        uses: softprops/action-gh-release@master
         with:
           files: /tmp/${{ env.ARCHIVE_NAME }}
           name: aria2 ${{ env.ARIA2_VER }} static release
           body_path: "${{ github.workspace }}/build_info.md"
+          append_body: true
