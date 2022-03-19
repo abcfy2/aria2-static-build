@@ -32,10 +32,10 @@ export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
   source /etc/os-release
   cat >/etc/apt/sources.list <<EOF
-deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
-deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
-deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse
-deb http://repo.huaweicloud.com/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse
+deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
+deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
+deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse
+deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse
 EOF
 fi
 
@@ -54,18 +54,6 @@ apt install -y g++ \
   autopoint \
   patch \
   wget
-mkdir -p "${CROSS_ROOT}" /usr/src/zlib \
-  /usr/src/zlib-ng \
-  /usr/src/xz \
-  /usr/src/openssl \
-  /usr/src/libressl \
-  /usr/src/libxml2 \
-  /usr/src/sqlite \
-  /usr/src/c-ares \
-  /usr/src/libssh2 \
-  /usr/src/libuv \
-  /usr/src/jemalloc \
-  /usr/src/aria2
 
 TARGET_ARCH="${CROSS_HOST%%-*}"
 TARGET_HOST="${CROSS_HOST#*-}"
@@ -120,25 +108,34 @@ retry() {
 }
 
 prepare_toolchain() {
-  # toolchain
-  [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ] &&
-    retry wget -c -O \"${SELF_DIR}/${CROSS_HOST}-cross.tgz\" "http://musl.cc/${CROSS_HOST}-cross.tgz"
-  tar -axf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
+  mkdir -p "${CROSS_ROOT}"
+  if [ -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ]; then
+    cd "${SELF_DIR}"
+    if ! wget -qO- --compression=auto http://musl.cc/SHA512SUMS |
+      grep "${CROSS_HOST}-cross.tgz" | head -1 | sha512sum -c; then
+      rm -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz"
+    fi
+  fi
+  if [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ]; then
+    retry wget -cT10 -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "http://musl.cc/${CROSS_HOST}-cross.tgz"
+  fi
+  tar -zxf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
 }
 
 prepare_zlib() {
-  # zlib
   if [ x"${USE_ZLIB_NG}" = x"1" ]; then
-    if [ ! -f "${SELF_DIR}/zlib-ng.tar.gz" ]; then
-      zlib_ng_latest_tag="$(retry wget -qO- https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tag_name'")"
+    zlib_ng_latest_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tag_name'")"
+    if [ ! -f "${SELF_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz" ]; then
       zlib_ng_latest_url="https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${zlib_ng_latest_tag}.tar.gz"
       if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
         zlib_ng_latest_url="https://ghproxy.com/${zlib_ng_latest_url}"
       fi
-      retry wget -c -O "${SELF_DIR}/zlib-ng.tar.gz" "${zlib_ng_latest_url}"
+      retry wget -cT10 -O "${SELF_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz.part" "${zlib_ng_latest_url}"
+      mv -fv "${SELF_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz.part" "${SELF_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz"
     fi
-    tar -zxf "${SELF_DIR}/zlib-ng.tar.gz" --strip-components=1 -C /usr/src/zlib-ng
-    cd /usr/src/zlib-ng
+    mkdir -p "/usr/src/zlib-ng-${zlib_ng_latest_tag}"
+    tar -zxf "${SELF_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz" --strip-components=1 -C "/usr/src/zlib-ng-${zlib_ng_latest_tag}"
+    cd "/usr/src/zlib-ng-${zlib_ng_latest_tag}"
     CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static --zlib-compat
     make -j$(nproc)
     make install
@@ -147,12 +144,15 @@ prepare_zlib() {
     # Fix mingw build sharedlibdir lost issue
     sed -i 's@^sharedlibdir=.*@sharedlibdir=${libdir}@' "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc"
   else
-    if [ ! -f "${SELF_DIR}/zlib.tar.gz" ]; then
-      zlib_latest_url="$(retry wget -qO- https://zlib.net/ \| grep -i "'\s*<a href=\".*\"$'" \| sed -n 2p \| awk -F'\"' "'{print \$2}'")"
-      retry wget -c -O "${SELF_DIR}/zlib.tar.gz" "${zlib_latest_url}"
+    zlib_tag="$(retry wget -qO- --compression=auto https://zlib.net/ \| grep -i "'<FONT.*FONT>'" \| sed -r "'s/.*zlib\s*([^<]+).*/\1/'" \| head -1)"
+    if [ ! -f "${SELF_DIR}/zlib-${zlib_tag}.tar.gz" ]; then
+      zlib_latest_url="https://sourceforge.net/projects/libpng/files/zlib/${zlib_tag}/zlib-${zlib_tag}.tar.xz/download"
+      retry wget -cT10 -O "${SELF_DIR}/zlib-${zlib_tag}.tar.gz.part" "${zlib_latest_url}"
+      mv -fv "${SELF_DIR}/zlib-${zlib_tag}.tar.gz.part" "${SELF_DIR}/zlib-${zlib_tag}.tar.gz"
     fi
-    tar -zxf "${SELF_DIR}/zlib.tar.gz" --strip-components=1 -C /usr/src/zlib
-    cd /usr/src/zlib
+    mkdir -p "/usr/src/zlib-${zlib_tag}"
+    tar -Jxf "${SELF_DIR}/zlib-${zlib_tag}.tar.gz" --strip-components=1 -C "/usr/src/zlib-${zlib_tag}"
+    cd "/usr/src/zlib-${zlib_tag}"
     if [ x"${TARGET_HOST}" = xwin ]; then
       make -f win32/Makefile.gcc BINARY_PATH="${CROSS_PREFIX}/bin" INCLUDE_PATH="${CROSS_PREFIX}/include" LIBRARY_PATH="${CROSS_PREFIX}/lib" SHARED_MODE=0 PREFIX="${CROSS_HOST}-" -j$(nproc) install
     else
@@ -166,13 +166,15 @@ prepare_zlib() {
 }
 
 prepare_xz() {
-  # xz
-  if [ ! -f "${SELF_DIR}/xz.tar.gz" ]; then
-    xz_latest_url="https://sourceforge.net/projects/lzmautils/files/latest/download"
-    retry wget -c -O "${SELF_DIR}/xz.tar.gz" "${xz_latest_url}"
+  xz_tag="$(retry wget -qO- --compression=auto https://tukaani.org/xz/ \| grep "'was released on'" \| head -1 \| cut -d "' '" -f1)"
+  if [ ! -f "${SELF_DIR}/xz-${xz_tag}.tar.xz" ]; then
+    xz_latest_url="https://tukaani.org/xz/xz-${xz_tag}.tar.xz"
+    retry wget -cT10 -O "${SELF_DIR}/xz-${xz_tag}.tar.xz.part" "${xz_latest_url}"
+    mv -fv "${SELF_DIR}/xz-${xz_tag}.tar.xz.part" "${SELF_DIR}/xz-${xz_tag}.tar.xz"
   fi
-  tar -zxf "${SELF_DIR}/xz.tar.gz" --strip-components=1 -C /usr/src/xz
-  cd /usr/src/xz
+  mkdir -p "/usr/src/xz-${xz_tag}"
+  tar -Jxf "${SELF_DIR}/xz-${xz_tag}.tar.xz" --strip-components=1 -C "/usr/src/xz-${xz_tag}"
+  cd "/usr/src/xz-${xz_tag}"
   ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
   make -j$(nproc)
   make install
@@ -185,17 +187,18 @@ prepare_ssl() {
   if [ x"${TARGET_HOST}" != xwin ]; then
     if [ x"${USE_LIBRESSL}" = x1 ]; then
       # libressl
-      if [ ! -f "${SELF_DIR}/libressl.tar.gz" ]; then
-        LIBRESSL_DOWNLOAD_URL_ROOT='https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/'
+      libressl_tag="$(retry wget -qO- --compression=auto https://www.libressl.org/index.html \| grep "'release is'" \| tail -1 \| sed -r "'s/.* (.+)<.*>$/\1/'")"
+      if [ ! -f "${SELF_DIR}/libressl-${libressl_tag}.tar.gz" ]; then
+        libressl_latest_url="https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
         if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-          LIBRESSL_DOWNLOAD_URL_ROOT='https://mirror.sjtu.edu.cn/OpenBSD/LibreSSL/'
+          libressl_latest_url="https://mirror.sjtu.edu.cn/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
         fi
-        libressl_filename="$(retry wget -qO- "${LIBRESSL_DOWNLOAD_URL_ROOT}" \| grep -o "'href=\".*libressl-.*tar.gz\"'" \| tail -1 \| grep -o "'[^\"]*.tar.gz'")"
-        libressl_latest_url="${LIBRESSL_DOWNLOAD_URL_ROOT}${libressl_filename}"
-        retry wget -c -O "${SELF_DIR}/libressl.tar.gz" "${libressl_latest_url}"
+        retry wget -cT10 -O "${SELF_DIR}/libressl-${libressl_tag}.tar.gz.part" "${libressl_latest_url}"
+        mv -fv "${SELF_DIR}/libressl-${libressl_tag}.tar.gz.part" "${SELF_DIR}/libressl-${libressl_tag}.tar.gz"
       fi
-      tar -zxf "${SELF_DIR}/libressl.tar.gz" --strip-components=1 -C /usr/src/libressl
-      cd /usr/src/libressl
+      mkdir -p "/usr/src/libressl-${libressl_tag}"
+      tar -zxf "${SELF_DIR}/libressl-${libressl_tag}.tar.gz" --strip-components=1 -C "/usr/src/libressl-${libressl_tag}"
+      cd "/usr/src/libressl-${libressl_tag}"
       if [ ! -f "./configure" ]; then
         ./autogen.sh
       fi
@@ -206,13 +209,19 @@ prepare_ssl() {
       echo "- libressl: ${libressl_ver}, source: ${libressl_latest_url:-cached libressl}" >>"${BUILD_INFO}"
     else
       # openssl
-      if [ ! -f "${SELF_DIR}/openssl.tar.gz" ]; then
-        openssl_filename="$(retry wget -qO- https://www.openssl.org/source/ \| grep -o "'href=\"openssl-3.*tar.gz\"'" \| grep -o "'[^\"]*.tar.gz'")"
-        openssl_latest_url="https://www.openssl.org/source/${openssl_filename}"
-        retry wget -c -O "${SELF_DIR}/openssl.tar.gz" "${openssl_latest_url}"
+      openssl_filename="$(retry wget -qO- --compression=auto https://www.openssl.org/source/ \| grep -o "'href=\"openssl-3.*tar.gz\"'" \| grep -o "'[^\"]*.tar.gz'")"
+      openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
+      if [ ! -f "${SELF_DIR}/openssl-${openssl_ver}.tar.gz" ]; then
+        openssl_download_url="https://github.com/openssl/openssl/archive/refs/tags/${openssl_filename}"
+        if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+          openssl_download_url="https://ghproxy.com/${openssl_download_url}"
+        fi
+        retry wget -cT10 -O "${SELF_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_download_url}"
+        mv -fv "${SELF_DIR}/openssl-${openssl_ver}.tar.gz.part" "${SELF_DIR}/openssl-${openssl_ver}.tar.gz"
       fi
-      tar -zxf "${SELF_DIR}/openssl.tar.gz" --strip-components=1 -C /usr/src/openssl
-      cd /usr/src/openssl
+      mkdir -p "/usr/src/openssl-${openssl_ver}"
+      tar -zxf "${SELF_DIR}/openssl-${openssl_ver}.tar.gz" --strip-components=1 -C "/usr/src/openssl-${openssl_ver}"
+      cd "/usr/src/openssl-${openssl_ver}"
       ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}"
       make -j$(nproc)
       make install_sw
@@ -223,13 +232,16 @@ prepare_ssl() {
 }
 
 prepare_libxml2() {
-  # libxml2
-  if [ ! -f "${SELF_DIR}/libxml2.tar.gz" ]; then
-    libxml2_latest_url="http://xmlsoft.org/sources/LATEST_LIBXML2"
-    retry wget -c -O "${SELF_DIR}/libxml2.tar.gz" "${libxml2_latest_url}"
+  libxml2_latest_url="$(retry wget -qO- --compression=auto 'https://gitlab.gnome.org/api/graphql' --header="'Content-Type: application/json'" --post-data="'{\"query\":\"query {project(fullPath:\\\"GNOME/libxml2\\\"){releases(first:1,sort:RELEASED_AT_DESC){nodes{assets{links{nodes{directAssetUrl}}}}}}}\"}'" \| jq -r "'.data.project.releases.nodes[0].assets.links.nodes[0].directAssetUrl'")"
+  libxml2_tag="$(echo "${libxml2_latest_url}" | sed -r 's/.*libxml2-(.+).tar.*/\1/')"
+  libxml2_filename="$(echo "${libxml2_latest_url}" | sed -r 's/.*(libxml2-(.+).tar.*)/\1/')"
+  if [ ! -f "${SELF_DIR}/${libxml2_filename}" ]; then
+    retry wget -c -O "${SELF_DIR}/${libxml2_filename}.part" "${libxml2_latest_url}"
+    mv -fv "${SELF_DIR}/${libxml2_filename}.part" "${SELF_DIR}/${libxml2_filename}"
   fi
-  tar -zxf "${SELF_DIR}/libxml2.tar.gz" --strip-components=1 -C /usr/src/libxml2
-  cd /usr/src/libxml2
+  mkdir -p "/usr/src/libxml2-${libxml2_tag}"
+  tar -axf "${SELF_DIR}/${libxml2_filename}" --strip-components=1 -C "/usr/src/libxml2-${libxml2_tag}"
+  cd "/usr/src/libxml2-${libxml2_tag}"
   ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --without-python --without-icu --enable-static --disable-shared
   make -j$(nproc)
   make install
@@ -238,16 +250,18 @@ prepare_libxml2() {
 }
 
 prepare_sqlite() {
-  # sqlite
-  if [ ! -f "${SELF_DIR}/sqlite.tar.gz" ]; then
+  sqlite_tag="$(wget -qO- --compression=auto https://www.sqlite.org/index.html | sed -nr 's/.*>Version (.+)<.*/\1/p')"
+  if [ ! -f "${SELF_DIR}/sqlite-${sqlite_tag}.tar.gz" ]; then
     sqlite_latest_url="https://github.com/sqlite/sqlite/archive/release.tar.gz"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
       sqlite_latest_url="https://ghproxy.com/${sqlite_latest_url}"
     fi
-    retry wget -c -O "${SELF_DIR}/sqlite.tar.gz" "${sqlite_latest_url}"
+    retry wget -cT10 -O "${SELF_DIR}/sqlite-${sqlite_tag}.tar.gz.part" "${sqlite_latest_url}"
+    mv -fv "${SELF_DIR}/sqlite-${sqlite_tag}.tar.gz.part" "${SELF_DIR}/sqlite-${sqlite_tag}.tar.gz"
   fi
-  tar -zxf "${SELF_DIR}/sqlite.tar.gz" --strip-components=1 -C /usr/src/sqlite
-  cd /usr/src/sqlite
+  mkdir -p "/usr/src/sqlite-${sqlite_tag}"
+  tar -zxf "${SELF_DIR}/sqlite-${sqlite_tag}.tar.gz" --strip-components=1 -C "/usr/src/sqlite-${sqlite_tag}"
+  cd "/usr/src/sqlite-${sqlite_tag}"
   if [ x"${TARGET_HOST}" = x"win" ]; then
     ln -sf mksourceid.exe mksourceid
     SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
@@ -260,15 +274,16 @@ prepare_sqlite() {
 }
 
 prepare_c_ares() {
-  # c-ares
-  if [ ! -f "${SELF_DIR}/c-ares.tar.gz" ]; then
-    cares_suffix_url="$(retry wget -qO- https://c-ares.haxx.se/ \| grep -o "'href=\".*tar.gz\"'" \| grep -o "'[^\"]*tar.gz'")"
-    cares_latest_url="https://c-ares.haxx.se${cares_suffix_url}"
+  cares_tag="$(retry wget -qO- --compression=auto https://c-ares.org/ \| sed -nr "'s@.*<a href=\"/download/.*\">c-ares (.+)</a>.*@\1@p'")"
+  if [ ! -f "${SELF_DIR}/c-ares-${cares_tag}.tar.gz" ]; then
+    cares_latest_url="https://c-ares.org/download/c-ares-${cares_tag}.tar.gz"
     # cares_latest_url="https://github.com/c-ares/c-ares/archive/main.tar.gz"
-    retry wget -c -O "${SELF_DIR}/c-ares.tar.gz" "${cares_latest_url}"
+    retry wget -cT10 -O "${SELF_DIR}/c-ares-${cares_tag}.tar.gz.part" "${cares_latest_url}"
+    mv -fv "${SELF_DIR}/c-ares-${cares_tag}.tar.gz.part" "${SELF_DIR}/c-ares-${cares_tag}.tar.gz"
   fi
-  tar -zxf "${SELF_DIR}/c-ares.tar.gz" --strip-components=1 -C /usr/src/c-ares
-  cd /usr/src/c-ares
+  mkdir -p "/usr/src/c-ares-${cares_tag}"
+  tar -zxf "${SELF_DIR}/c-ares-${cares_tag}.tar.gz" --strip-components=1 -C "/usr/src/c-ares-${cares_tag}"
+  cd "/usr/src/c-ares-${cares_tag}"
   if [ ! -f "./configure" ]; then
     autoreconf -i
   fi
@@ -280,24 +295,35 @@ prepare_c_ares() {
 }
 
 prepare_libssh2() {
-  # libssh2
-  if [ ! -f "${SELF_DIR}/libssh2.tar.gz" ]; then
-    libssh2_suffix_url="$(retry wget -qO- https://www.libssh2.org/ \| grep -o "'href=\".*tar.gz\"'" \| grep -o "'[^\"]*libssh2.*tar.gz'")"
-    libssh2_latest_url="https://www.libssh2.org/${libssh2_suffix_url}"
-    retry wget -c -O "${SELF_DIR}/libssh2.tar.gz" "${libssh2_latest_url}"
+  libssh2_tag="$(retry wget -qO- --compression=auto https://www.libssh2.org/ \| sed -nr "'s@.*The latest release:.*download/libssh2-(.+).tar.gz.*@\1@p'")"
+  if [ ! -f "${SELF_DIR}/libssh2-${libssh2_tag}.tar.gz" ]; then
+    libssh2_latest_url="https://www.libssh2.org/download/libssh2-${libssh2_tag}.tar.gz"
+    retry wget -cT10 -O "${SELF_DIR}/libssh2-${libssh2_tag}.tar.gz.part" "${libssh2_latest_url}"
+    mv -fv "${SELF_DIR}/libssh2-${libssh2_tag}.tar.gz.part" "${SELF_DIR}/libssh2-${libssh2_tag}.tar.gz"
   fi
-  tar -zxf "${SELF_DIR}/libssh2.tar.gz" --strip-components=1 -C /usr/src/libssh2
-  cd /usr/src/libssh2
+  mkdir -p "/usr/src/libssh2-${libssh2_tag}"
+  tar -zxf "${SELF_DIR}/libssh2-${libssh2_tag}.tar.gz" --strip-components=1 -C "/usr/src/libssh2-${libssh2_tag}"
+  cd "/usr/src/libssh2-${libssh2_tag}"
+  # issue: https://github.com/libressl-portable/portable/issues/736
+  if [ x"${USE_LIBRESSL}" = x1 -a x"${TARGET_HOST}" != x"win" ]; then
+    export CFLAGS='-DHAVE_OPAQUE_STRUCTS=1'
+  fi
   ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
   make -j$(nproc)
   make install
+  unset CFLAGS
   libssh2_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libssh2.pc")"
   echo "- libssh2: ${libssh2_ver}, source: ${libssh2_latest_url:-cached libssh2}" >>"${BUILD_INFO}"
 }
 
 build_aria2() {
-  # aria2
-  if [ ! -f "${SELF_DIR}/aria2.tar.gz" ]; then
+  if [ -n "${ARIA2_VER}" ]; then
+    aria2_tag="${ARIA2_VER}"
+  else
+    aria2_tag=master
+  fi
+
+  if [ ! -f "${SELF_DIR}/aria2-${aria2_tag}.tar.gz" ]; then
     if [ -n "${ARIA2_VER}" ]; then
       aria2_latest_url="https://github.com/aria2/aria2/releases/download/release-${ARIA2_VER}/aria2-${ARIA2_VER}.tar.gz"
     else
@@ -306,10 +332,12 @@ build_aria2() {
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
       aria2_latest_url="https://ghproxy.com/${aria2_latest_url}"
     fi
-    retry wget -c -O "${SELF_DIR}/aria2.tar.gz" "${aria2_latest_url}"
+    retry wget -cT10 -O "${SELF_DIR}/aria2-${aria2_tag}.tar.gz.part" "${aria2_latest_url}"
+    mv -fv "${SELF_DIR}/aria2-${aria2_tag}.tar.gz.part" "${SELF_DIR}/aria2-${aria2_tag}.tar.gz"
   fi
-  tar -zxf "${SELF_DIR}/aria2.tar.gz" --strip-components=1 -C /usr/src/aria2
-  cd /usr/src/aria2
+  mkdir -p "/usr/src/aria2-${aria2_tag}"
+  tar -zxf "${SELF_DIR}/aria2-${aria2_tag}.tar.gz" --strip-components=1 -C "/usr/src/aria2-${aria2_tag}"
+  cd "/usr/src/aria2-${aria2_tag}"
   if [ ! -f ./configure ]; then
     autoreconf -i
   fi
@@ -361,4 +389,4 @@ get_build_info
 test_build
 
 # get release
-cp -v "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
+cp -fv "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
