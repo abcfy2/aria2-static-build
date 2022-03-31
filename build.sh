@@ -86,7 +86,18 @@ export LDFLAGS="-L${CROSS_PREFIX}/lib64 -L${CROSS_PREFIX}/lib -s -static --stati
 SELF_DIR="$(dirname "$(realpath "${0}")")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
-echo "## Build Info - ${CROSS_HOST}" >"${BUILD_INFO}"
+if [ x"${USE_ZLIB_NG}" = x1 ]; then
+  ZLIB=zlib-ng
+else
+  ZLIB=zlib
+fi
+if [ x"${USE_LIBRESSL}" = x1 ]; then
+  SSL=LibreSSL
+else
+  SSL=OpenSSL
+fi
+
+echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
 
 retry() {
