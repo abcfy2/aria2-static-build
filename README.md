@@ -18,6 +18,23 @@ Continuous build: https://github.com/abcfy2/aria2-static-build/releases/tag/cont
 >
 > Please note `getprop net.dns1` does not work since Android 8, so you have to set a valid DNS manually.
 
+## https certificates NOTE (Linux Only)
+
+SSL certificates location may vary from different distributions. E.g: Ubuntu uses `/etc/ssl/certs/ca-certificates.crt`, but CentOS uses `/etc/pki/tls/certs/ca-bundle.crt`.
+
+It's impossible to detect certificates location in all distributions. See issue: [openssl/openssl#7481](https://github.com/openssl/openssl/issues/7481). But luckily most distributions may contains a symbol link `/etc/ssl/cert.pem` which point to the actual file path.
+
+So I set compile options `--openssldir=/etc/ssl/` for openssl/libressl. Which works for most distributions.
+
+If your environment contains file `/etc/ssl/openssl.cnf` or `/etc/ssl/cert.pem`, you were luckly and you can use my build out-of-box.
+
+But if your environment does not contain any of the files, you have to do one of the following settings to make https request could work.
+
+- add `--ca-certificate=/path/to/your/certificate` to `aria2c` or set `ca-certificate=/path/to/your/certificate` in `~/.aria2/aria2.conf`. E.g: `./aria2c --ca-certificate=/etc/pki/tls/certs/ca-bundle.crt https://github.com/`
+- Or add `SSL_CERT_FILE=/path/to/your/certificate` environment variable before you run `aria2c`. E.g: `export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt; ./aria2c https://github.com/` or `SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt ./aria2c https://github.com/`
+
+> Reference for different distribution certificates locations: https://gitlab.com/probono/platformissues/blob/master/README.md#certificates
+
 ## Build locally yourself
 
 Requirements:
