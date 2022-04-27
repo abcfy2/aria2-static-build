@@ -157,7 +157,7 @@ prepare_zlib() {
   else
     zlib_tag="$(retry wget -qO- --compression=auto https://zlib.net/ \| grep -i "'<FONT.*FONT>'" \| sed -r "'s/.*zlib\s*([^<]+).*/\1/'" \| head -1)"
     if [ ! -f "${SELF_DIR}/zlib-${zlib_tag}.tar.gz" ]; then
-      zlib_latest_url="https://sourceforge.net/projects/libpng/files/zlib/${zlib_tag}/zlib-${zlib_tag}.tar.xz/download"
+      zlib_latest_url="https://zlib.net/zlib-${zlib_tag}.tar.xz"
       retry wget -cT10 -O "${SELF_DIR}/zlib-${zlib_tag}.tar.gz.part" "${zlib_latest_url}"
       mv -fv "${SELF_DIR}/zlib-${zlib_tag}.tar.gz.part" "${SELF_DIR}/zlib-${zlib_tag}.tar.gz"
     fi
