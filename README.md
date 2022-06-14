@@ -13,7 +13,7 @@ Continuous build: https://github.com/abcfy2/aria2-static-build/releases/tag/cont
 > Here is a sample:
 >
 > ```sh
-> cat /etc/security/cacerts/* | ./aria2c --async-dns-server=1.1.1.1 https://github.com/
+> cat /etc/security/cacerts/* | ./aria2c --ca-certificate=/proc/self/fd/0 --async-dns-server=1.1.1.1 https://github.com/
 > ```
 >
 > Please note `getprop net.dns1` does not work since Android 8, so you have to set a valid DNS manually.
