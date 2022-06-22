@@ -4,9 +4,11 @@
 
 aria2 static build using musl and support many platforms.
 
-You can downloads from release pages.
+## Download
 
-Continuous build: https://github.com/abcfy2/aria2-static-build/releases/tag/continuous
+You can download from [Continuous Build](https://github.com/abcfy2/aria2-static-build/releases/tag/continuous) (Weekly build from aria2 master branch with latest dependencies).
+
+Or download from [latest release](https://github.com/abcfy2/aria2-static-build/releases/latest) build (Build from aria2 latest release version).
 
 > **NOTE**: If you were executed in Android environment (maybe x86_64, arm, or aarch64), please follow the official aria2 Android README: https://github.com/aria2/aria2/blob/master/README.android
 >
