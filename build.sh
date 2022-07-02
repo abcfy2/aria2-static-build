@@ -28,10 +28,10 @@ esac
 export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 
+source /etc/os-release
 dpkg --add-architecture i386
 # Ubuntu mirror for local building
 if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-  source /etc/os-release
   cat >/etc/apt/sources.list <<EOF
 deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
 deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
@@ -41,6 +41,11 @@ EOF
 fi
 
 export DEBIAN_FRONTEND=noninteractive
+
+# keep debs in container for store cache in docker volume
+rm -f /etc/apt/apt.conf.d/*
+echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' >/etc/apt/apt.conf.d/01keep-debs
+echo -e 'Acquire::https::Verify-Peer "false";\nAcquire::https::Verify-Host "false";' >/etc/apt/apt.conf.d/99-trust-https
 
 apt update
 apt install -y g++ \
@@ -69,7 +74,11 @@ esac
 case "${TARGET_HOST}" in
 *"mingw"*)
   TARGET_HOST=win
-  apt install -y wine
+  apt install -y gpg
+  wget -qO- https://dl.winehq.org/wine-builds/winehq.key | apt-key add -
+  echo "deb http://dl.winehq.org/wine-builds/ubuntu/ ${UBUNTU_CODENAME} main" > /etc/apt/sources.list.d/winehq.list
+  apt update
+  apt install -y winehq-staging
   export WINEPREFIX=/tmp/
   RUNNER_CHECKER="wine"
   ;;
@@ -379,11 +388,7 @@ get_build_info() {
 
 test_build() {
   echo "============= ARIA2 TEST DOWNLOAD =============="
-  # Seems wine does not support WinTLS until now, which will cause wine aria2c.exe be failed.
-  # But in fact it works in real Windows, so I just skip Windows test.
-  if [ x"${TARGET_HOST}" != xwin ]; then
-    "${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/aria2c"* --http-accept-gzip=true https://github.com/ -d /tmp -o test
-  fi
+  "${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/aria2c"* --http-accept-gzip=true https://github.com/ -d /tmp -o test
   echo "================================================"
 }
 
