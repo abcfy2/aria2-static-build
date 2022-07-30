@@ -132,13 +132,13 @@ prepare_toolchain() {
   mkdir -p "${CROSS_ROOT}"
   if [ -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ]; then
     cd "${SELF_DIR}"
-    if ! wget -qO- --compression=auto http://musl.cc/SHA512SUMS |
+    if ! wget -qO- --compression=auto https://musl.cc/SHA512SUMS |
       grep "${CROSS_HOST}-cross.tgz" | head -1 | sha512sum -c; then
       rm -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz"
     fi
   fi
   if [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ]; then
-    retry wget -cT10 -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "http://musl.cc/${CROSS_HOST}-cross.tgz"
+    retry wget -cT10 -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
   fi
   tar -zxf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
 }
