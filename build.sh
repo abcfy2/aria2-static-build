@@ -138,6 +138,8 @@ prepare_toolchain() {
     fi
   fi
   if [ ! -f "${SELF_DIR}/${CROSS_HOST}-cross.tgz" ]; then
+    current_ip="$(wget -qO- ifconfig.me)"
+    echo "Current IP is: ${current_ip}"
     retry wget -c -U curl/7.84.0 -O "${SELF_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
   fi
   tar -zxf "${SELF_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
