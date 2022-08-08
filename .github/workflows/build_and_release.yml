@@ -69,7 +69,7 @@ jobs:
           path: downloads/
           key: build-cache-${{ matrix.cross_host }}-${{ github.sha }}
           restore-keys: |
-            build-cache-${{ matrix.cross_host }}-${{ matrix.cross_host }}-
+            build-cache-${{ matrix.cross_host }}-
       - name: compile
         env:
           CROSS_HOST: "${{ matrix.cross_host }}"

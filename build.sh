@@ -136,13 +136,13 @@ prepare_toolchain() {
   mkdir -p "${CROSS_ROOT}"
   if [ -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
     cd "${DOWNLOADS_DIR}"
-    if ! wget -qO- --compression=auto -U curl/7.84.0 https://musl.cc/SHA512SUMS |
+    if ! wget -qO- --compression=auto -U MacroMu https://musl.cc/SHA512SUMS |
       grep "${CROSS_HOST}-cross.tgz" | head -1 | sha512sum -c; then
       rm -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
     fi
   fi
   if [ ! -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
-    retry wget -c -U curl/7.84.0 -O "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
+    retry wget -c -U MacroMu -O "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
   fi
   tar -zxf "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
 }
