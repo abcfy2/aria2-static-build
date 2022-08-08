@@ -63,6 +63,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v3
+      - uses: actions/cache@v3
+        id: cache
+        with:
+          path: downloads/
+          key: build-cache-${{ matrix.cross_host }}-${{ github.sha }}
+          restore-keys: |
+            build-cache-${{ matrix.cross_host }}-${{ matrix.cross_host }}-
       - name: compile
         env:
           CROSS_HOST: "${{ matrix.cross_host }}"
