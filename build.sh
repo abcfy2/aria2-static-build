@@ -157,7 +157,9 @@ prepare_toolchain() {
   fi
 
   if [ ! -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
-    retry wget -cT30 -O "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
+    rm -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz.part"
+    retry wget -cT30 --no-use-server-timestamps -O "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz.part" "https://musl.cc/${CROSS_HOST}-cross.tgz"
+    mv -fv "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz.part" "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
   fi
   tar -zxf "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
 }
