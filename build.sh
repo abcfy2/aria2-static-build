@@ -28,6 +28,24 @@ esac
 export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 
+retry() {
+  # max retry 5 times
+  try=5
+  # sleep 3s every retry
+  sleep_time=3
+  for i in $(seq ${try}); do
+    echo "executing with retry: $@" >&2
+    if eval "$@"; then
+      return 0
+    else
+      echo "execute '$@' failed, tries: ${i}" >&2
+      sleep ${sleep_time}
+    fi
+  done
+  echo "execute '$@' failed" >&2
+  return 1
+}
+
 source /etc/os-release
 dpkg --add-architecture i386
 # Ubuntu mirror for local building
@@ -74,9 +92,17 @@ esac
 case "${TARGET_HOST}" in
 *"mingw"*)
   TARGET_HOST=win
-  apt install -y gpg
-  wget -qO- https://dl.winehq.org/wine-builds/winehq.key | apt-key add -
-  echo "deb http://dl.winehq.org/wine-builds/ubuntu/ ${UBUNTU_CODENAME} main" >/etc/apt/sources.list.d/winehq.list
+  if [ ! -f "/usr/share/keyrings/winehq-archive.key" ]; then
+    rm -f /usr/share/keyrings/winehq-archive.key.part
+    retry wget -cT30 -O /usr/share/keyrings/winehq-archive.key.part https://dl.winehq.org/wine-builds/winehq.key
+    mv -fv /usr/share/keyrings/winehq-archive.key.part /usr/share/keyrings/winehq-archive.key
+  fi
+  if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+    WINEHQ_URL="http://mirrors.tuna.tsinghua.edu.cn/wine-builds/ubuntu/"
+  else
+    WINEHQ_URL="http://dl.winehq.org/wine-builds/ubuntu/"
+  fi
+  echo "deb [signed-by=/usr/share/keyrings/winehq-archive.key] ${WINEHQ_URL} ${UBUNTU_CODENAME} main" >/etc/apt/sources.list.d/winehq.list
   apt update
   apt install -y winehq-staging
   export WINEPREFIX=/tmp/
@@ -113,24 +139,6 @@ fi
 
 echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
-
-retry() {
-  # max retry 5 times
-  try=5
-  # sleep 3s every retry
-  sleep_time=3
-  for i in $(seq ${try}); do
-    echo "executing with retry: $@" >&2
-    if eval "$@"; then
-      return 0
-    else
-      echo "execute '$@' failed, tries: ${i}" >&2
-      sleep ${sleep_time}
-    fi
-  done
-  echo "execute '$@' failed" >&2
-  return 1
-}
 
 prepare_toolchain() {
   mkdir -p "${CROSS_ROOT}"

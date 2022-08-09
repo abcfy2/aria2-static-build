@@ -1,6 +1,3 @@
-*.tar*
-*.tgz
-*.zip
 aria2c*
 build_info.md
 downloads/
