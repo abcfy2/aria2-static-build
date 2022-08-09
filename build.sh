@@ -144,12 +144,18 @@ prepare_toolchain() {
   mkdir -p "${CROSS_ROOT}"
   if [ -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
     cd "${DOWNLOADS_DIR}"
-    SHA512SUMS="$(retry wget -T30 -O- --compression=auto https://musl.cc/SHA512SUMS)"
-    if ! echo "${SHA512SUMS}" |
-      grep "${CROSS_HOST}-cross.tgz" | head -1 | sha512sum -c; then
-      rm -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
+    cached_file_ts="$(stat -c '%Y' "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz")"
+    current_ts="$(date +%s)"
+    if [ "$((${current_ts} - "${cached_file_ts}"))" -gt 2592000 ]; then
+      SHA512SUMS="$(retry wget -T30 -O- --compression=auto https://musl.cc/SHA512SUMS)"
+      if echo "${SHA512SUMS}" | grep "${CROSS_HOST}-cross.tgz" | head -1 | sha512sum -c; then
+        touch "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
+      else
+        rm -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
+      fi
     fi
   fi
+
   if [ ! -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
     retry wget -cT30 -O "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" "https://musl.cc/${CROSS_HOST}-cross.tgz"
   fi
