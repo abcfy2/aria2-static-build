@@ -1,9 +1,14 @@
 #!/bin/bash -e
 
+# This scrip is for static cross compiling
+# Please run this scrip in docker image: abcfy2/muslcc-toolchain-ubuntu:${CROSS_HOST}
+# E.g: docker run --rm -v `git rev-parse --show-toplevel`:/build abcfy2/muslcc-toolchain-ubuntu:arm-linux-musleabi /build/build.sh
+# Artifacts will copy to the same directory.
+
 set -o pipefail
 
 # value from: https://musl.cc/ (without -cross or -native)
-export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
+# export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
 # value from openssl source: ./Configure LIST
 case "${CROSS_HOST}" in
 arm-linux*)
@@ -25,7 +30,7 @@ x86_64-linux*)
   export OPENSSL_COMPILER=gcc
   ;;
 esac
-export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
+# export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 
 retry() {
@@ -422,7 +427,7 @@ test_build() {
   echo "================================================"
 }
 
-prepare_toolchain
+# prepare_toolchain
 prepare_zlib
 prepare_xz
 prepare_ssl
