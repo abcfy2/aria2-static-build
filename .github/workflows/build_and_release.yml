@@ -21,7 +21,7 @@ jobs:
     steps:
       - name: Set current date as env variable
         run: echo "NOW=$(date --utc)" >> $GITHUB_ENV
-      - uses: dev-drprasad/delete-tag-and-release@v0.1.2
+      - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         with:
           delete_release: true
           tag_name: continuous
@@ -95,7 +95,7 @@ jobs:
           zip -j9v "/tmp/${ARCHIVE_NAME}" "${GITHUB_WORKSPACE}"/aria2c*
       - name: Prerelease assets
         if: github.event_name == 'push' || github.event_name == 'schedule'
-        uses: softprops/action-gh-release@master
+        uses: softprops/action-gh-release@v1
         with:
           files: /tmp/${{ env.ARCHIVE_NAME }}
           prerelease: true
@@ -106,7 +106,7 @@ jobs:
           append_body: true
       - name: Upload Github Assets
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@master
+        uses: softprops/action-gh-release@v1
         with:
           files: /tmp/${{ env.ARCHIVE_NAME }}
           name: aria2 ${{ env.ARIA2_VER }} static release
