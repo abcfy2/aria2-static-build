@@ -26,6 +26,9 @@ mips64-linux*)
 x86_64-linux*)
   export OPENSSL_COMPILER=linux-x86_64
   ;;
+s390x-linux*)
+  export OPENSSL_COMPILER=linux64-s390x
+  ;;
 *)
   export OPENSSL_COMPILER=gcc
   ;;

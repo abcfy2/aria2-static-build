@@ -67,7 +67,7 @@ Cached build dependencies (`downloads/`), `build_info.md` and `aria2c` will be f
 You can set more optional environment variables in `docker` command like:
 
 ```sh
-docker run --rm -v `pwd`:/build -e USE_ZLIB_NG=0 -e USE_LIBRESSL=1 ubuntu /build/build.sh
+docker run --rm -v `pwd`:/build -e USE_ZLIB_NG=0 -e USE_LIBRESSL=1 abcfy2/muslcc-toolchain-ubuntu:${CROSS_HOST} /build/build.sh
 ```
 
 Optional environment variables:
