@@ -100,6 +100,8 @@ esac
 case "${TARGET_HOST}" in
 *"mingw"*)
   TARGET_HOST=win
+  rm -fr "${CROSS_ROOT}"
+  hash -r
   if [ ! -f "/usr/share/keyrings/winehq-archive.key" ]; then
     rm -f /usr/share/keyrings/winehq-archive.key.part
     retry wget -cT30 -O /usr/share/keyrings/winehq-archive.key.part https://dl.winehq.org/wine-builds/winehq.key
@@ -112,7 +114,7 @@ case "${TARGET_HOST}" in
   fi
   echo "deb [signed-by=/usr/share/keyrings/winehq-archive.key] ${WINEHQ_URL} ${UBUNTU_CODENAME} main" >/etc/apt/sources.list.d/winehq.list
   apt update
-  apt install -y winehq-staging
+  apt install -y winehq-staging mingw-w64
   export WINEPREFIX=/tmp/
   RUNNER_CHECKER="wine"
   ;;
@@ -126,7 +128,7 @@ esac
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
 export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib64/pkgconfig:${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
-export LDFLAGS="-L${CROSS_PREFIX}/lib64 -L${CROSS_PREFIX}/lib -s -static --static"
+export LDFLAGS="-L${CROSS_PREFIX}/lib64 -L${CROSS_PREFIX}/lib -I${CROSS_PREFIX}/include -s -static --static"
 SELF_DIR="$(dirname "$(realpath "${0}")")"
 BUILD_INFO="${SELF_DIR}/build_info.md"
 
@@ -147,30 +149,6 @@ fi
 
 echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
-
-prepare_toolchain() {
-  mkdir -p "${CROSS_ROOT}"
-  if [ -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
-    cd "${DOWNLOADS_DIR}"
-    cached_file_ts="$(stat -c '%Y' "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz")"
-    current_ts="$(date +%s)"
-    if [ "$((${current_ts} - "${cached_file_ts}"))" -gt 2592000 ]; then
-      SHA512SUMS="$(retry wget -T30 -O- --compression=auto https://musl.cc/SHA512SUMS)"
-      if echo "${SHA512SUMS}" | grep "${CROSS_HOST}-cross.tgz" | head -1 | sha512sum -c; then
-        touch "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
-      else
-        rm -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
-      fi
-    fi
-  fi
-
-  if [ ! -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" ]; then
-    rm -f "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz.part"
-    retry wget -cT30 --no-use-server-timestamps -O "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz.part" "https://musl.cc/${CROSS_HOST}-cross.tgz"
-    mv -fv "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz.part" "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz"
-  fi
-  tar -zxf "${DOWNLOADS_DIR}/${CROSS_HOST}-cross.tgz" --transform='s|^\./||S' --strip-components=1 -C "${CROSS_ROOT}"
-}
 
 prepare_zlib() {
   if [ x"${USE_ZLIB_NG}" = x"1" ]; then
@@ -430,7 +408,6 @@ test_build() {
   echo "================================================"
 }
 
-# prepare_toolchain
 prepare_zlib
 prepare_xz
 prepare_ssl
