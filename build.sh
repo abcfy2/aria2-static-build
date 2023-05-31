@@ -85,7 +85,8 @@ apt install -y g++ \
   automake \
   autopoint \
   patch \
-  wget
+  wget \
+  unzip
 
 TARGET_ARCH="${CROSS_HOST%%-*}"
 TARGET_HOST="${CROSS_HOST#*-}"
@@ -99,7 +100,7 @@ case "${TARGET_ARCH}" in
 esac
 case "${TARGET_HOST}" in
 *"mingw"*)
-  TARGET_HOST=win
+  TARGET_HOST=Windows
   rm -fr "${CROSS_ROOT}"
   hash -r
   if [ ! -f "/usr/share/keyrings/winehq-archive.key" ]; then
@@ -119,7 +120,7 @@ case "${TARGET_HOST}" in
   RUNNER_CHECKER="wine"
   ;;
 *)
-  TARGET_HOST=linux
+  TARGET_HOST=Linux
   apt install -y "qemu-user-static"
   RUNNER_CHECKER="qemu-${TARGET_ARCH}-static"
   ;;
@@ -150,6 +151,46 @@ fi
 echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
 
+prepare_cmake() {
+  if ! which cmake &>/dev/null; then
+    cmake_latest_ver="$(retry wget -qO- --compression=auto https://cmake.org/download/ \| grep "'Latest Release'" \| sed -r "'s/.*Latest Release\s*\((.+)\).*/\1/'" \| head -1)"
+    cmake_binary_url="https://github.com/Kitware/CMake/releases/download/v${cmake_latest_ver}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz"
+    cmake_sha256_url="https://github.com/Kitware/CMake/releases/download/v${cmake_latest_ver}/cmake-${cmake_latest_ver}-SHA-256.txt"
+    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+      cmake_binary_url="https://ghproxy.com/${cmake_binary_url}"
+      cmake_sha256_url="https://ghproxy.com/${cmake_sha256_url}"
+    fi
+    if [ -f "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" ]; then
+      cd "${DOWNLOADS_DIR}"
+      if ! retry wget -qO- --compression=auto "${cmake_sha256_url}" \| grep "cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" \| sha256sum -c; then
+        rm -f "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz"
+      fi
+    fi
+    if [ ! -f "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" ]; then
+      retry wget -cT10 -O "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" "${cmake_binary_url}"
+    fi
+    tar -zxf "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" -C /usr/local --strip-components 1
+  fi
+  cmake --version
+}
+
+prepare_ninja() {
+  if ! which ninja &>/dev/null; then
+    ninja_ver="$(retry wget -qO- --compression=auto https://ninja-build.org/ \| grep "'The last Ninja release is'" \| sed -r "'s@.*<b>(.+)</b>.*@\1@'" \| head -1)"
+    ninja_binary_url="https://github.com/ninja-build/ninja/releases/download/${ninja_ver}/ninja-linux.zip"
+    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+      ninja_binary_url="https://ghproxy.com/${ninja_binary_url}"
+    fi
+    if [ ! -f "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip" ]; then
+      rm -f "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip.part"
+      retry wget -cT10 -O "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip.part" "${ninja_binary_url}"
+      mv -fv "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip.part" "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip"
+    fi
+    unzip -d /usr/local/bin "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip"
+  fi
+  echo "Ninja version $(ninja --version)"
+}
+
 prepare_zlib() {
   if [ x"${USE_ZLIB_NG}" = x"1" ]; then
     zlib_ng_latest_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tag_name'")"
@@ -164,9 +205,19 @@ prepare_zlib() {
     mkdir -p "/usr/src/zlib-ng-${zlib_ng_latest_tag}"
     tar -zxf "${DOWNLOADS_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz" --strip-components=1 -C "/usr/src/zlib-ng-${zlib_ng_latest_tag}"
     cd "/usr/src/zlib-ng-${zlib_ng_latest_tag}"
-    CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static --zlib-compat
-    make -j$(nproc)
-    make install
+    rm -fr build
+    cmake -B build \
+      -G Ninja \
+      -DBUILD_SHARED_LIBS=OFF \
+      -DZLIB_COMPAT=ON \
+      -DCMAKE_SYSTEM_NAME="${TARGET_HOST}" \
+      -DCMAKE_INSTALL_PREFIX="${CROSS_PREFIX}" \
+      -DCMAKE_C_COMPILER="${CROSS_HOST}-gcc" \
+      -DCMAKE_CXX_COMPILER="${CROSS_HOST}-g++" \
+      -DCMAKE_SYSTEM_PROCESSOR="${TARGET_ARCH}" \
+      -DWITH_GTEST=OFF
+    cmake --build build
+    cmake --install build
     zlib_ng_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc")"
     echo "- zlib-ng: ${zlib_ng_ver}, source: ${zlib_ng_latest_url:-cached zlib-ng}" >>"${BUILD_INFO}"
     # Fix mingw build sharedlibdir lost issue
@@ -181,7 +232,7 @@ prepare_zlib() {
     mkdir -p "/usr/src/zlib-${zlib_tag}"
     tar -Jxf "${DOWNLOADS_DIR}/zlib-${zlib_tag}.tar.gz" --strip-components=1 -C "/usr/src/zlib-${zlib_tag}"
     cd "/usr/src/zlib-${zlib_tag}"
-    if [ x"${TARGET_HOST}" = xwin ]; then
+    if [ x"${TARGET_HOST}" = xWindows ]; then
       make -f win32/Makefile.gcc BINARY_PATH="${CROSS_PREFIX}/bin" INCLUDE_PATH="${CROSS_PREFIX}/include" LIBRARY_PATH="${CROSS_PREFIX}/lib" SHARED_MODE=0 PREFIX="${CROSS_HOST}-" -j$(nproc) install
     else
       CHOST="${CROSS_HOST}" ./configure --prefix="${CROSS_PREFIX}" --static
@@ -212,7 +263,7 @@ prepare_xz() {
 
 prepare_ssl() {
   # Windows will use Wintls, not openssl
-  if [ x"${TARGET_HOST}" != xwin ]; then
+  if [ x"${TARGET_HOST}" != xWindows ]; then
     if [ x"${USE_LIBRESSL}" = x1 ]; then
       # libressl
       libressl_tag="$(retry wget -qO- --compression=auto https://www.libressl.org/index.html \| grep "'release is'" \| tail -1 \| sed -r "'s/.* (.+)<.*>$/\1/'")" libressl_latest_url="https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
@@ -289,7 +340,7 @@ prepare_sqlite() {
   mkdir -p "/usr/src/sqlite-${sqlite_tag}"
   tar -zxf "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz" --strip-components=1 -C "/usr/src/sqlite-${sqlite_tag}"
   cd "/usr/src/sqlite-${sqlite_tag}"
-  if [ x"${TARGET_HOST}" = x"win" ]; then
+  if [ x"${TARGET_HOST}" = x"Windows" ]; then
     ln -sf mksourceid.exe mksourceid
     SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
   fi
@@ -322,7 +373,7 @@ prepare_c_ares() {
 }
 
 prepare_libssh2() {
-  libssh2_tag="$(retry wget -qO- --compression=auto https://www.libssh2.org/ \| sed -nr "'s@.*The latest release:.*download/libssh2-(.+).tar.gz.*@\1@p'")"
+  libssh2_tag="$(retry wget -qO- --compression=auto https://www.libssh2.org/ \| sed -nr "'s@.*libssh2 ([^<]*).*released on.*@\1@p'")"
   libssh2_latest_url="https://www.libssh2.org/download/libssh2-${libssh2_tag}.tar.gz"
   if [ ! -f "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz.part" "${libssh2_latest_url}"
@@ -331,10 +382,6 @@ prepare_libssh2() {
   mkdir -p "/usr/src/libssh2-${libssh2_tag}"
   tar -zxf "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz" --strip-components=1 -C "/usr/src/libssh2-${libssh2_tag}"
   cd "/usr/src/libssh2-${libssh2_tag}"
-  # issue: https://github.com/libressl-portable/portable/issues/736
-  if [ x"${USE_LIBRESSL}" = x1 -a x"${TARGET_HOST}" != x"win" ]; then
-    export CFLAGS='-DHAVE_OPAQUE_STRUCTS=1'
-  fi
   ./configure --build=x86_64-linux-gnu --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
   make -j$(nproc)
   make install
@@ -408,6 +455,8 @@ test_build() {
   echo "================================================"
 }
 
+prepare_cmake
+prepare_ninja
 prepare_zlib
 prepare_xz
 prepare_ssl
