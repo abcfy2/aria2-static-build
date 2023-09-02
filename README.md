@@ -1,6 +1,6 @@
 # aria2-static-build
 
-![Build and Release](https://github.com/abcfy2/aria2-static-build/workflows/.github/workflows/build_and_release.yml/badge.svg)
+![Build and Release](https://github.com/abcfy2/aria2-static-build/actions/workflows/build_and_release.yml/badge.svg)
 
 aria2 static build using musl and support many platforms.
 
