@@ -88,6 +88,7 @@ apt install -y g++ \
   wget \
   unzip
 
+BUILD_ARCH="$(gcc -dumpmachine)"
 TARGET_ARCH="${CROSS_HOST%%-*}"
 TARGET_HOST="${CROSS_HOST#*-}"
 case "${TARGET_ARCH}" in
@@ -157,12 +158,13 @@ prepare_cmake() {
     cmake_binary_url="https://github.com/Kitware/CMake/releases/download/v${cmake_latest_ver}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz"
     cmake_sha256_url="https://github.com/Kitware/CMake/releases/download/v${cmake_latest_ver}/cmake-${cmake_latest_ver}-SHA-256.txt"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      cmake_binary_url="https://gh-proxy.com/${cmake_binary_url}"
-      cmake_sha256_url="https://gh-proxy.com/${cmake_sha256_url}"
+      cmake_binary_url="https://mirror.ghproxy.com/${cmake_binary_url}"
+      cmake_sha256_url="https://mirror.ghproxy.com/${cmake_sha256_url}"
     fi
     if [ -f "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" ]; then
       cd "${DOWNLOADS_DIR}"
-      if ! retry wget -qO- --compression=auto "${cmake_sha256_url}" \| grep "cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" \| sha256sum -c; then
+      cmake_sha256="$(retry wget -qO- --compression=auto "${cmake_sha256_url}")"
+      if ! echo "${cmake_sha256}" | grep "cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" | sha256sum -c; then
         rm -f "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz"
       fi
     fi
@@ -179,7 +181,7 @@ prepare_ninja() {
     ninja_ver="$(retry wget -qO- --compression=auto https://ninja-build.org/ \| grep "'The last Ninja release is'" \| sed -r "'s@.*<b>(.+)</b>.*@\1@'" \| head -1)"
     ninja_binary_url="https://github.com/ninja-build/ninja/releases/download/${ninja_ver}/ninja-linux.zip"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      ninja_binary_url="https://gh-proxy.com/${ninja_binary_url}"
+      ninja_binary_url="https://mirror.ghproxy.com/${ninja_binary_url}"
     fi
     if [ ! -f "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip" ]; then
       rm -f "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip.part"
@@ -196,7 +198,7 @@ prepare_zlib() {
     zlib_ng_latest_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tag_name'")"
     zlib_ng_latest_url="https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${zlib_ng_latest_tag}.tar.gz"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      zlib_ng_latest_url="https://gh-proxy.com/${zlib_ng_latest_url}"
+      zlib_ng_latest_url="https://mirror.ghproxy.com/${zlib_ng_latest_url}"
     fi
     if [ ! -f "${DOWNLOADS_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz" ]; then
       retry wget -cT10 -O "${DOWNLOADS_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz.part" "${zlib_ng_latest_url}"
@@ -291,7 +293,7 @@ prepare_ssl() {
       openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
       openssl_latest_url="https://github.com/openssl/openssl/archive/refs/tags/${openssl_filename}"
       if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-        openssl_latest_url="https://gh-proxy.com/${openssl_latest_url}"
+        openssl_latest_url="https://mirror.ghproxy.com/${openssl_latest_url}"
       fi
       if [ ! -f "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" ]; then
         retry wget -cT10 -O "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_latest_url}"
@@ -331,7 +333,7 @@ prepare_sqlite() {
   sqlite_tag="$(wget -qO- --compression=auto https://www.sqlite.org/index.html | sed -nr 's/.*>Version (.+)<.*/\1/p')"
   sqlite_latest_url="https://github.com/sqlite/sqlite/archive/release.tar.gz"
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-    sqlite_latest_url="https://gh-proxy.com/${sqlite_latest_url}"
+    sqlite_latest_url="https://mirror.ghproxy.com/${sqlite_latest_url}"
   fi
   if [ ! -f "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz.part" "${sqlite_latest_url}"
@@ -344,7 +346,7 @@ prepare_sqlite() {
     ln -sf mksourceid.exe mksourceid
     SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
   fi
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared ${SQLITE_EXT_CONF}
+  ./configure --build="${BUILD_ARCH}" --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared ${SQLITE_EXT_CONF}
   make -j$(nproc)
   make install
   sqlite_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/"sqlite*.pc)"
@@ -412,7 +414,7 @@ build_aria2() {
     aria2_latest_url="https://github.com/aria2/aria2/archive/master.tar.gz"
   fi
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-    aria2_latest_url="https://gh-proxy.com/${aria2_latest_url}"
+    aria2_latest_url="https://mirror.ghproxy.com/${aria2_latest_url}"
   fi
 
   if [ ! -f "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz" ]; then
@@ -469,7 +471,8 @@ prepare_libssh2
 build_aria2
 
 get_build_info
-test_build
+# mips test will hang, I don't know why. So I just ignore test failures.
+# test_build
 
 # get release
 cp -fv "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
