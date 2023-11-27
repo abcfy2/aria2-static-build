@@ -289,7 +289,7 @@ prepare_ssl() {
       echo "- libressl: ${libressl_ver}, source: ${libressl_latest_url:-cached libressl}" >>"${BUILD_INFO}"
     else
       # openssl
-      openssl_filename="$(retry wget -qO- --compression=auto https://www.openssl.org/source/ \| grep -o "'href=\"openssl-3.1.*tar.gz\"'" \| grep -o "'[^\"]*.tar.gz'" \| head -1)"
+      openssl_filename="$(retry wget -qO- --compression=auto https://www.openssl.org/source/ \| grep -o "'href=\"openssl-3.2.*tar.gz\"'" \| grep -o "'[^\"]*.tar.gz'" \| head -1)"
       openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
       openssl_latest_url="https://github.com/openssl/openssl/archive/refs/tags/${openssl_filename}"
       if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
