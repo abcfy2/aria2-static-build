@@ -23,7 +23,6 @@ jobs:
         run: echo "NOW=$(date --utc)" >> $GITHUB_ENV
       - uses: dev-drprasad/delete-tag-and-release@v0.2.1
         with:
-          delete_release: true
           tag_name: continuous
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -62,7 +61,7 @@ jobs:
             use_libressl: 1
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - uses: actions/cache@v3
         id: cache
         with:
