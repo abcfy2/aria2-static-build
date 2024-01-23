@@ -247,8 +247,12 @@ prepare_zlib() {
 }
 
 prepare_xz() {
-  xz_tag="$(retry wget -qO- --compression=auto https://tukaani.org/xz/ \| grep "'was released on'" \| head -1 \| cut -d "' '" -f1)"
-  xz_latest_url="https://tukaani.org/xz/xz-${xz_tag}.tar.xz"
+  xz_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/tukaani-project/xz/releases \| jq -r "'.[0].tag_name'")"
+  xz_archive_name="$(retry wget -qO- --compression=auto https://api.github.com/repos/tukaani-project/xz/releases \| jq -r "'.[0].assets[].name | select(endswith(\"tar.xz\"))'")"
+  xz_latest_url="https://github.com/tukaani-project/xz/releases/download/${xz_tag}/${xz_archive_name}"
+  if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+    xz_latest_url="https://mirror.ghproxy.com/${xz_latest_url}"
+  fi
   if [ ! -f "${DOWNLOADS_DIR}/xz-${xz_tag}.tar.xz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/xz-${xz_tag}.tar.xz.part" "${xz_latest_url}"
     mv -fv "${DOWNLOADS_DIR}/xz-${xz_tag}.tar.xz.part" "${DOWNLOADS_DIR}/xz-${xz_tag}.tar.xz"

@@ -19,11 +19,12 @@ jobs:
     if: github.event_name == 'push' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
       - name: Set current date as env variable
         run: echo "NOW=$(date --utc)" >> $GITHUB_ENV
-      - uses: dev-drprasad/delete-tag-and-release@v0.2.1
-        with:
-          tag_name: continuous
+      - name: Delete Continuous Release
+        run: gh release delete continuous --cleanup-tag
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Prerelease Tag
@@ -62,7 +63,7 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-      - uses: actions/cache@v3
+      - uses: actions/cache@v4
         id: cache
         with:
           path: downloads/
