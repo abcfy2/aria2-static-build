@@ -247,8 +247,9 @@ prepare_zlib() {
 }
 
 prepare_xz() {
-  xz_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/tukaani-project/xz/releases \| jq -r "'.[0].tag_name'")"
-  xz_archive_name="$(retry wget -qO- --compression=auto https://api.github.com/repos/tukaani-project/xz/releases \| jq -r "'.[0].assets[].name | select(endswith(\"tar.xz\"))'")"
+  xz_release_info="$(retry wget -qO- --compression=auto https://api.github.com/repos/tukaani-project/xz/releases \| jq -r "'[.[] | select(.prerelease == false)][0]'")"
+  xz_tag="$(printf '%s' "${xz_release_info}" | jq -r '.tag_name')"
+  xz_archive_name="$(printf '%s' "${xz_release_info}" | jq -r '.assets[].name | select(endswith("tar.xz"))')"
   xz_latest_url="https://github.com/tukaani-project/xz/releases/download/${xz_tag}/${xz_archive_name}"
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
     xz_latest_url="https://mirror.ghproxy.com/${xz_latest_url}"
@@ -334,7 +335,7 @@ prepare_libxml2() {
 }
 
 prepare_sqlite() {
-  sqlite_tag="$(wget -qO- --compression=auto https://www.sqlite.org/index.html | sed -nr 's/.*>Version (.+)<.*/\1/p')"
+  sqlite_tag="$(retry wget -qO- --compression=auto https://www.sqlite.org/index.html \| sed -nr "'s/.*>Version (.+)<.*/\1/p'")"
   sqlite_latest_url="https://github.com/sqlite/sqlite/archive/release.tar.gz"
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
     sqlite_latest_url="https://mirror.ghproxy.com/${sqlite_latest_url}"
