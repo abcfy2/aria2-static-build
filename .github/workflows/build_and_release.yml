@@ -1,4 +1,4 @@
-name: 'Build and Release'
+name: "Build and Release"
 
 on:
   push:
@@ -24,20 +24,19 @@ jobs:
       - name: Set current date as env variable
         run: echo "NOW=$(date --utc)" >> $GITHUB_ENV
       - name: Delete Continuous Release
-        run: gh release delete continuous --cleanup-tag
+        run: gh release delete continuous --cleanup-tag || true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       - name: Create Prerelease Tag
         id: create_prerelease_tag
-        uses: softprops/action-gh-release@v1
-        with:
-          prerelease: true
-          draft: false
-          tag_name: continuous
-          name: Continuous build
-          body: |
-            Building time: ${{ env.NOW }}
-            - - -
+        run: |
+          gh release create continuous -p -t 'Continuous build' --notes "Building time: ${NOW}
+          - - -
+          "
+          # Make sure draft is false
+          gh release edit continuous --draft=false
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   static-build:
     runs-on: ubuntu-latest
