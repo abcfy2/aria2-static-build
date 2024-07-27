@@ -94,7 +94,7 @@ jobs:
           zip -j9v "/tmp/${ARCHIVE_NAME}" "${GITHUB_WORKSPACE}"/aria2c*
       - name: Prerelease assets
         if: github.event_name == 'push' || github.event_name == 'schedule'
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: /tmp/${{ env.ARCHIVE_NAME }}
           prerelease: true
@@ -105,7 +105,7 @@ jobs:
           append_body: true
       - name: Upload Github Assets
         if: startsWith(github.ref, 'refs/tags/')
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: /tmp/${{ env.ARCHIVE_NAME }}
           name: aria2 ${{ env.ARIA2_VER }} static release
