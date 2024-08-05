@@ -86,7 +86,8 @@ apt install -y g++ \
   autopoint \
   patch \
   wget \
-  unzip
+  unzip \
+  curl
 
 BUILD_ARCH="$(gcc -dumpmachine)"
 TARGET_ARCH="${CROSS_HOST%%-*}"
@@ -436,6 +437,8 @@ build_aria2() {
   mkdir -p "/usr/src/aria2-${aria2_tag}"
   tar -zxf "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz" --strip-components=1 -C "/usr/src/aria2-${aria2_tag}"
   cd "/usr/src/aria2-${aria2_tag}"
+  # remove server max connection limit
+  curl -fsSL "https://aur.archlinux.org/cgit/aur.git/plain/unlimited-max-connection.patch?h=aria2-unlimited" | patch -p1
   if [ ! -f ./configure ]; then
     autoreconf -i
   fi
