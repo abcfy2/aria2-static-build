@@ -33,7 +33,7 @@ s390x-linux*)
   export OPENSSL_COMPILER=gcc
   ;;
 esac
-# export CROSS_ROOT="${CROSS_ROOT:-/cross_root}"
+
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 
 retry() {
@@ -58,12 +58,28 @@ source /etc/os-release
 dpkg --add-architecture i386
 # Ubuntu mirror for local building
 if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-  cat >/etc/apt/sources.list <<EOF
+  if [ -f "/etc/apt/sources.list.d/ubuntu.sources" ]; then
+    cat >/etc/apt/sources.list.d/ubuntu.sources <<EOF
+Types: deb
+URIs: http://mirror.sjtu.edu.cn/ubuntu/
+Suites: ${UBUNTU_CODENAME} ${UBUNTU_CODENAME}-updates ${UBUNTU_CODENAME}-backports
+Components: main universe restricted multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+
+Types: deb
+URIs: http://mirror.sjtu.edu.cn/ubuntu/
+Suites: ${UBUNTU_CODENAME}-security
+Components: main universe restricted multiverse
+Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
+EOF
+  else
+    cat >/etc/apt/sources.list <<EOF
 deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
 deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
 deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse
 deb http://mirror.sjtu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse
 EOF
+  fi
 fi
 
 export DEBIAN_FRONTEND=noninteractive
@@ -102,21 +118,8 @@ esac
 case "${TARGET_HOST}" in
 *"mingw"*)
   TARGET_HOST=Windows
-  rm -fr "${CROSS_ROOT}"
-  hash -r
-  # if [ ! -f "/usr/share/keyrings/winehq-archive.key" ]; then
-  #   rm -f /usr/share/keyrings/winehq-archive.key.part
-  #   retry wget -cT30 -O /usr/share/keyrings/winehq-archive.key.part https://dl.winehq.org/wine-builds/winehq.key
-  #   mv -fv /usr/share/keyrings/winehq-archive.key.part /usr/share/keyrings/winehq-archive.key
-  # fi
-  # if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-  #   WINEHQ_URL="http://mirrors.tuna.tsinghua.edu.cn/wine-builds/ubuntu/"
-  # else
-  #   WINEHQ_URL="http://dl.winehq.org/wine-builds/ubuntu/"
-  # fi
-  # echo "deb [signed-by=/usr/share/keyrings/winehq-archive.key] ${WINEHQ_URL} ${UBUNTU_CODENAME} main" >/etc/apt/sources.list.d/winehq.list
   apt update
-  apt install -y wine mingw-w64
+  apt install -y wine
   export WINEPREFIX=/tmp/
   RUNNER_CHECKER="wine"
   ;;
@@ -158,8 +161,8 @@ prepare_cmake() {
     cmake_binary_url="https://github.com/Kitware/CMake/releases/download/v${cmake_latest_ver}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz"
     cmake_sha256_url="https://github.com/Kitware/CMake/releases/download/v${cmake_latest_ver}/cmake-${cmake_latest_ver}-SHA-256.txt"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      cmake_binary_url="https://ghproxy.org/${cmake_binary_url}"
-      cmake_sha256_url="https://ghproxy.org/${cmake_sha256_url}"
+      cmake_binary_url="https://ghp.ci/${cmake_binary_url}"
+      cmake_sha256_url="https://ghp.ci/${cmake_sha256_url}"
     fi
     if [ -f "${DOWNLOADS_DIR}/cmake-${cmake_latest_ver}-linux-x86_64.tar.gz" ]; then
       cd "${DOWNLOADS_DIR}"
@@ -181,7 +184,7 @@ prepare_ninja() {
     ninja_ver="$(retry wget -qO- --compression=auto https://ninja-build.org/ \| grep "'The last Ninja release is'" \| sed -r "'s@.*<b>(.+)</b>.*@\1@'" \| head -1)"
     ninja_binary_url="https://github.com/ninja-build/ninja/releases/download/${ninja_ver}/ninja-linux.zip"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      ninja_binary_url="https://ghproxy.org/${ninja_binary_url}"
+      ninja_binary_url="https://ghp.ci/${ninja_binary_url}"
     fi
     if [ ! -f "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip" ]; then
       rm -f "${DOWNLOADS_DIR}/ninja-${ninja_ver}-linux.zip.part"
@@ -198,7 +201,7 @@ prepare_zlib() {
     zlib_ng_latest_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/zlib-ng/zlib-ng/releases \| jq -r "'.[0].tag_name'")"
     zlib_ng_latest_url="https://github.com/zlib-ng/zlib-ng/archive/refs/tags/${zlib_ng_latest_tag}.tar.gz"
     if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      zlib_ng_latest_url="https://ghproxy.org/${zlib_ng_latest_url}"
+      zlib_ng_latest_url="https://ghp.ci/${zlib_ng_latest_url}"
     fi
     if [ ! -f "${DOWNLOADS_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz" ]; then
       retry wget -cT10 -O "${DOWNLOADS_DIR}/zlib-ng-${zlib_ng_latest_tag}.tar.gz.part" "${zlib_ng_latest_url}"
@@ -215,7 +218,6 @@ prepare_zlib() {
       -DCMAKE_SYSTEM_NAME="${TARGET_HOST}" \
       -DCMAKE_INSTALL_PREFIX="${CROSS_PREFIX}" \
       -DCMAKE_C_COMPILER="${CROSS_HOST}-gcc" \
-      -DCMAKE_CXX_COMPILER="${CROSS_HOST}-g++" \
       -DCMAKE_SYSTEM_PROCESSOR="${TARGET_ARCH}" \
       -DWITH_GTEST=OFF
     cmake --build build
@@ -253,7 +255,7 @@ prepare_xz() {
   # xz_archive_name="$(printf '%s' "${xz_release_info}" | jq -r '.assets[].name | select(endswith("tar.xz"))')"
   # xz_latest_url="https://github.com/tukaani-project/xz/releases/download/${xz_tag}/${xz_archive_name}"
   # if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-  #   xz_latest_url="https://ghproxy.org/${xz_latest_url}"
+  #   xz_latest_url="https://ghp.ci/${xz_latest_url}"
   # fi
   # Download from sourceforge
   xz_tag="$(retry wget -qO- --compression=auto https://sourceforge.net/projects/lzmautils/files/ \| grep -i \'span class=\"sub-label\"\' \| head -1 \| sed -r "'s/.*xz-(.+)\.tar\.gz.*/\1/'")"
@@ -302,7 +304,7 @@ prepare_ssl() {
       openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
       openssl_latest_url="https://github.com/openssl/openssl/releases/download/openssl-${openssl_ver}/${openssl_filename}"
       if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-        openssl_latest_url="https://ghproxy.org/${openssl_latest_url}"
+        openssl_latest_url="https://ghp.ci/${openssl_latest_url}"
       fi
       if [ ! -f "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" ]; then
         retry wget -cT10 -O "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_latest_url}"
@@ -342,7 +344,7 @@ prepare_sqlite() {
   sqlite_tag="$(retry wget -qO- --compression=auto https://www.sqlite.org/index.html \| sed -nr "'s/.*>Version (.+)<.*/\1/p'")"
   sqlite_latest_url="https://github.com/sqlite/sqlite/archive/release.tar.gz"
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-    sqlite_latest_url="https://ghproxy.org/${sqlite_latest_url}"
+    sqlite_latest_url="https://ghp.ci/${sqlite_latest_url}"
   fi
   if [ ! -f "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz.part" "${sqlite_latest_url}"
@@ -367,7 +369,7 @@ prepare_c_ares() {
   cares_ver="${cares_latest_tag#v}"
   cares_latest_url="https://github.com/c-ares/c-ares/releases/download/${cares_latest_tag}/c-ares-${cares_ver}.tar.gz"
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-    cares_latest_url="https://ghproxy.org/${cares_latest_url}"
+    cares_latest_url="https://ghp.ci/${cares_latest_url}"
   fi
   if [ ! -f "${DOWNLOADS_DIR}/c-ares-${cares_ver}.tar.gz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/c-ares-${cares_ver}.tar.gz.part" "${cares_latest_url}"
@@ -399,7 +401,6 @@ prepare_libssh2() {
   ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
   make -j$(nproc)
   make install
-  unset CFLAGS
   libssh2_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libssh2.pc")"
   echo "- libssh2: ${libssh2_ver}, source: ${libssh2_latest_url:-cached libssh2}" >>"${BUILD_INFO}"
 }
@@ -426,7 +427,7 @@ build_aria2() {
     aria2_latest_url="https://github.com/aria2/aria2/archive/master.tar.gz"
   fi
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-    aria2_latest_url="https://ghproxy.org/${aria2_latest_url}"
+    aria2_latest_url="https://ghp.ci/${aria2_latest_url}"
   fi
 
   if [ ! -f "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz" ]; then
