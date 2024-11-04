@@ -44,19 +44,20 @@ Requirements:
 - docker
 
 ```sh
-docker run --rm -v `pwd`:/build abcfy2/muslcc-toolchain-ubuntu:${CROSS_HOST} /build/build.sh
+docker run --rm -v `pwd`:/build abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST} /build/build.sh
 ```
 
-All avaliable `CROSS_HOST` can be found in [Tags](https://hub.docker.com/r/abcfy2/muslcc-toolchain-ubuntu/tags) page.
+All avaliable `CROSS_HOST` can be found in [Tags](https://hub.docker.com/r/abcfy2/musl-cross-toolchain-ubuntu/tags) page.
 
 **NOTE**: Currently I only tested these tags:
 
-- arm-linux-musleabi
-- aarch64-linux-musl
-- mips-linux-musl
-- mipsel-linux-musl
-- mips64-linux-musl
-- x86_64-linux-musl
+- arm-unknown-linux-musleabi
+- aarch64-unknown-linux-musl
+- mips-unknown-linux-musl
+- mipsel-unknown-linux-musl
+- mips64-unknown-linux-musl
+- x86_64-unknown-linux-musl
+- i686-unknown-linux-musl
 - x86_64-w64-mingw32
 - i686-w64-mingw32
 

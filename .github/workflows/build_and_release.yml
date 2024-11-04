@@ -40,17 +40,17 @@ jobs:
 
   static-build:
     runs-on: ubuntu-latest
-    container: "abcfy2/muslcc-toolchain-ubuntu:${{ matrix.cross_host }}"
+    container: "ghcr.io/abcfy2/musl-cross-toolchain-ubuntu:${{ matrix.cross_host }}"
     strategy:
       fail-fast: false
       matrix:
         cross_host:
-          - arm-linux-musleabi
-          - aarch64-linux-musl
-          - mips-linux-musl
-          - mipsel-linux-musl
-          - mips64-linux-musl
-          - x86_64-linux-musl
+          - arm-unknown-linux-musleabi
+          - aarch64-unknown-linux-musl
+          - mips-unknown-linux-musl
+          - mipsel-unknown-linux-musl
+          - mips64-unknown-linux-musl
+          - x86_64-unknown-linux-musl
           - x86_64-w64-mingw32
           - i686-w64-mingw32
         use_libressl: [0, 1]
@@ -86,9 +86,9 @@ jobs:
         run: |
           apt install -y zip
           if [ x"${USE_LIBRESSL}" = x"1" ]; then
-            ARCHIVE_NAME="aria2-${CROSS_HOST}_libressl_static.zip"
+            ARCHIVE_NAME="aria2-${CROSS_HOST//-unknown/}_libressl_static.zip"
           else
-            ARCHIVE_NAME="aria2-${CROSS_HOST}_static.zip"
+            ARCHIVE_NAME="aria2-${CROSS_HOST//-unknown/}_static.zip"
           fi
           echo "ARCHIVE_NAME=${ARCHIVE_NAME}" >> $GITHUB_ENV
           zip -j9v "/tmp/${ARCHIVE_NAME}" "${GITHUB_WORKSPACE}"/aria2c*

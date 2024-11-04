@@ -1,33 +1,39 @@
 #!/bin/bash -e
 
 # This scrip is for static cross compiling
-# Please run this scrip in docker image: abcfy2/muslcc-toolchain-ubuntu:${CROSS_HOST}
-# E.g: docker run --rm -v `git rev-parse --show-toplevel`:/build abcfy2/muslcc-toolchain-ubuntu:arm-linux-musleabi /build/build.sh
+# Please run this scrip in docker image: abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST}
+# E.g: docker run --rm -v `git rev-parse --show-toplevel`:/build abcfy2/musl-cross-toolchain-ubuntu:arm-unknown-linux-musleabi /build/build.sh
 # Artifacts will copy to the same directory.
 
 set -o pipefail
 
-# value from: https://musl.cc/ (without -cross or -native)
-# export CROSS_HOST="${CROSS_HOST:-arm-linux-musleabi}"
+# value from: https://hub.docker.com/repository/docker/abcfy2/musl-cross-toolchain-ubuntu/tags
+# export CROSS_HOST="${CROSS_HOST:-arm-unknown-linux-musleabi}"
 # value from openssl source: ./Configure LIST
 case "${CROSS_HOST}" in
-arm-linux*)
+arm-*linux*)
   export OPENSSL_COMPILER=linux-armv4
   ;;
-aarch64-linux*)
+aarch64-*linux*)
   export OPENSSL_COMPILER=linux-aarch64
   ;;
-mips-linux* | mipsel-linux*)
+mips-*linux* | mipsel-*linux*)
   export OPENSSL_COMPILER=linux-mips32
   ;;
-mips64-linux*)
+mips64-*linux*)
   export OPENSSL_COMPILER=linux64-mips64
   ;;
-x86_64-linux*)
+x86_64-*linux*)
   export OPENSSL_COMPILER=linux-x86_64
   ;;
-s390x-linux*)
+i?86-*linux*)
+  export OPENSSL_COMPILER=linux-x86
+  ;;
+s390x-*linux*)
   export OPENSSL_COMPILER=linux64-s390x
+  ;;
+loongarch64-*linux*)
+  export OPENSSL_COMPILER=linux64-loongarch64
   ;;
 *)
   export OPENSSL_COMPILER=gcc
@@ -113,6 +119,9 @@ case "${TARGET_ARCH}" in
   ;;
 "arm"*)
   TARGET_ARCH=arm
+  ;;
+i?86*)
+  TARGET_ARCH=i386
   ;;
 esac
 case "${TARGET_HOST}" in
@@ -485,7 +494,7 @@ build_aria2
 
 get_build_info
 # mips test will hang, I don't know why. So I just ignore test failures.
-# test_build
+test_build
 
 # get release
 cp -fv "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
