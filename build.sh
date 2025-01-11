@@ -43,9 +43,9 @@ esac
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
 
 retry() {
-  # max retry 5 times
-  try=5
-  # sleep 3s every retry
+  # max retry 15 times
+  try=30
+  # sleep 30s every retry
   sleep_time=30
   for i in $(seq ${try}); do
     echo "executing with retry: $@" >&2
