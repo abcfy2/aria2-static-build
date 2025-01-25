@@ -1,6 +1,6 @@
 #!/bin/bash -e
 
-# This scrip is for static cross compiling
+# This script is for static cross compiling
 # Please run this scrip in docker image: abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST}
 # E.g: docker run --rm -v `git rev-parse --show-toplevel`:/build abcfy2/musl-cross-toolchain-ubuntu:arm-unknown-linux-musleabi /build/build.sh
 # Artifacts will copy to the same directory.
@@ -366,9 +366,19 @@ prepare_sqlite() {
     ln -sf mksourceid.exe mksourceid
     SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
   fi
+  patch_sqlite
   ./configure --build="${BUILD_ARCH}" --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared ${SQLITE_EXT_CONF}
   make -j$(nproc)
   make install
+  # Use the cross-strip tool if host arch is not x86_64
+  case "${CROSS_HOST}" in
+  	x86_64-*linux*)
+  		strip "${CROSS_PREFIX}/bin/sqlite3"
+  		;;
+  	*)
+  		"${CROSS_HOST}-strip" "${CROSS_PREFIX}/bin/sqlite3"
+  		;;
+  esac
   sqlite_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/"sqlite*.pc)"
   echo "- sqlite: ${sqlite_ver}, source: ${sqlite_latest_url:-cached sqlite}" >>"${BUILD_INFO}"
 }
@@ -445,7 +455,6 @@ build_aria2() {
   fi
   mkdir -p "/usr/src/aria2-${aria2_tag}"
   tar -zxf "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz" --strip-components=1 -C "/usr/src/aria2-${aria2_tag}"
-  cd "/usr/src/aria2-${aria2_tag}"
   if [ ! -f ./configure ]; then
     autoreconf -i
   fi
@@ -480,6 +489,29 @@ test_build() {
   "${RUNNER_CHECKER}" "${CROSS_PREFIX}/bin/aria2c"* -t 10 --console-log-level=debug --http-accept-gzip=true https://github.com/ -d /tmp -o test
   echo "================================================"
 }
+
+# |==============================|
+# |   All source patches below   |
+# |==============================|
+
+patch_sqlite() {
+  patch -p0 << 'EOF'
+  --- main_main.mk  2025-01-14 05:05:00.000000000 -0600
+  +++ main.mk 2025-01-24 18:10:11.399086093 -0600
+  @@ -2017,7 +2017,7 @@
+      $(LDFLAGS.libsqlite3) $(LDFLAGS.readline)
+ 
+   install-shell-0: sqlite3$(T.exe) $(install-dir.bin)
+  -	$(INSTALL) -s sqlite3$(T.exe) "$(install-dir.bin)"
+  +	$(INSTALL) sqlite3$(T.exe) "$(install-dir.bin)"
+   install-shell-1:
+   install: install-shell-$(HAVE_WASI_SDK)
+EOF
+}
+
+# |==============================|
+# |    End of source patches     |
+# |==============================|
 
 prepare_cmake
 prepare_ninja
