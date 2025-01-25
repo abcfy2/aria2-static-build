@@ -10,15 +10,17 @@ You can download from [Continuous Build](https://github.com/abcfy2/aria2-static-
 
 Or download from [latest release](https://github.com/abcfy2/aria2-static-build/releases/latest) build (Build from aria2 latest release version).
 
-> **NOTE**: If you were executed in Android environment (maybe x86_64, arm, or aarch64), please follow the official aria2 Android README: https://github.com/aria2/aria2/blob/master/README.android
->
-> Here is a sample:
->
-> ```sh
-> cat /etc/security/cacerts/* | ./aria2c --ca-certificate=/proc/self/fd/0 --async-dns-server=1.1.1.1 https://github.com/
-> ```
->
-> Please note `getprop net.dns1` does not work since Android 8, so you have to set a valid DNS manually.
+## Android users NOTE
+
+If you were executed in Android environment (maybe x86_64, arm, or aarch64), please follow the official aria2 Android README: https://github.com/aria2/aria2/blob/master/README.android
+
+Here is a sample:
+
+```sh
+cat /etc/security/cacerts/* | ./aria2c --ca-certificate=/proc/self/fd/0 --async-dns-server=1.1.1.1 https://github.com/
+```
+
+Please note `getprop net.dns1` does not work since Android 8, so you have to set a valid DNS manually.
 
 ## https certificates NOTE (Linux Only)
 
@@ -36,6 +38,18 @@ But if your environment does not contain any of the files, you have to do one of
 - Or add `SSL_CERT_FILE=/path/to/your/certificate` environment variable before you run `aria2c`. E.g: `export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt; ./aria2c https://github.com/` or `SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt ./aria2c https://github.com/`
 
 > Reference for different distribution certificates locations: https://gitlab.com/probono/platformissues/blob/master/README.md#certificates
+
+## Fedora users NOTE
+
+Fedora's openssl may contains some non-official patches and contains some configurations not support by this build openssl.
+
+For this scenario, you can force set an `OPENSSL_CONF` environment variable to point to an invalid path before run `aria2c`. E.g:
+
+```sh
+OPENSSL_CONF=/tmp ./aria2c https://github.com/
+```
+
+This will not be interfered with by Fedora's openssl configuration.
 
 ## Build locally yourself
 

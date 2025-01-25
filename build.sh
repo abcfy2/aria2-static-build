@@ -1,7 +1,7 @@
 #!/bin/bash -e
 
-# This scrip is for static cross compiling
-# Please run this scrip in docker image: abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST}
+# This script is for static cross compiling
+# Please run this script in docker image: abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST}
 # E.g: docker run --rm -v `git rev-parse --show-toplevel`:/build abcfy2/musl-cross-toolchain-ubuntu:arm-unknown-linux-musleabi /build/build.sh
 # Artifacts will copy to the same directory.
 
