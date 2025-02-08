@@ -363,8 +363,10 @@ prepare_sqlite() {
   tar -zxf "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz" --strip-components=1 -C "/usr/src/sqlite-${sqlite_tag}"
   cd "/usr/src/sqlite-${sqlite_tag}"
   if [ x"${TARGET_HOST}" = x"Windows" ]; then
-    ln -sf mksourceid.exe mksourceid
-    SQLITE_EXT_CONF="config_TARGET_EXEEXT=.exe"
+    if [ ! -f "${CROSS_PREFIX}/lib/libsqlite3.a" ]; then
+      ln -sv libsqlite3.lib "${CROSS_PREFIX}/lib/libsqlite3.a"
+    fi
+    SQLITE_EXT_CONF="--disable-load-extension"
   fi
   ./configure --build="${BUILD_ARCH}" --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared ${SQLITE_EXT_CONF}
   make -j$(nproc)
