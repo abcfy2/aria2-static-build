@@ -67,6 +67,7 @@ All avaliable `CROSS_HOST` can be found in [Tags](https://hub.docker.com/r/abcfy
 
 - arm-unknown-linux-musleabi
 - aarch64-unknown-linux-musl
+- loongarch64-unknown-linux-musl
 - mips-unknown-linux-musl
 - mipsel-unknown-linux-musl
 - mips64-unknown-linux-musl

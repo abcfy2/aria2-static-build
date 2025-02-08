@@ -47,6 +47,7 @@ jobs:
         cross_host:
           - arm-unknown-linux-musleabi
           - aarch64-unknown-linux-musl
+          - loongarch64-unknown-linux-musl
           - mips-unknown-linux-musl
           - mipsel-unknown-linux-musl
           - mips64-unknown-linux-musl
