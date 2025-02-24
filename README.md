@@ -2,7 +2,7 @@
 
 ![Build and Release](https://github.com/abcfy2/aria2-static-build/actions/workflows/build_and_release.yml/badge.svg)
 
-aria2 static build using musl and support many platforms.
+aria2 static build using musl that supports many platforms.
 
 ## Download
 
@@ -12,7 +12,7 @@ Or download from [latest release](https://github.com/abcfy2/aria2-static-build/r
 
 ## Android users NOTE
 
-If you were executed in Android environment (maybe x86_64, arm, or aarch64), please follow the official aria2 Android README: https://github.com/aria2/aria2/blob/master/README.android
+If you are executing in an Android environment (such as x86_64, arm, or aarch64), please follow the official aria2 Android README: https://github.com/aria2/aria2/blob/master/README.android
 
 Here is a sample:
 
@@ -20,19 +20,19 @@ Here is a sample:
 cat /etc/security/cacerts/* | ./aria2c --ca-certificate=/proc/self/fd/0 --async-dns-server=1.1.1.1 https://github.com/
 ```
 
-Please note `getprop net.dns1` does not work since Android 8, so you have to set a valid DNS manually.
+Please note that `getprop net.dns1` does not work since Android 8, so you must set a valid DNS manually.
 
 ## https certificates NOTE (Linux Only)
 
 SSL certificates location may vary from different distributions. E.g: Ubuntu uses `/etc/ssl/certs/ca-certificates.crt`, but CentOS uses `/etc/pki/tls/certs/ca-bundle.crt`.
 
-It's impossible to detect certificates location in all distributions. See issue: [openssl/openssl#7481](https://github.com/openssl/openssl/issues/7481). But luckily most distributions may contains a symbol link `/etc/ssl/cert.pem` which point to the actual file path.
+It's impossible to detect the certificate locations in all distributions. See issue: [openssl/openssl#7481](https://github.com/openssl/openssl/issues/7481). Fortunately, most distributions may contain a symbolic link `/etc/ssl/cert.pem` that points to the actual file path.
 
 So I set compile options `--openssldir=/etc/ssl/` for openssl/libressl. Which works for most distributions.
 
-If your environment contains file `/etc/ssl/openssl.cnf` or `/etc/ssl/cert.pem`, you were luckly and you can use my build out-of-box.
+If your environment contains the file `/etc/ssl/openssl.cnf` or `/etc/ssl/cert.pem`, you are lucky and can use my build out of the box.
 
-But if your environment does not contain any of the files, you have to do one of the following settings to make https request could work.
+If your environment does not contain any of these files, you must do one of the following to ensure HTTPS requests work.
 
 - add `--ca-certificate=/path/to/your/certificate` to `aria2c` or set `ca-certificate=/path/to/your/certificate` in `~/.aria2/aria2.conf`. E.g: `./aria2c --ca-certificate=/etc/pki/tls/certs/ca-bundle.crt https://github.com/`
 - Or add `SSL_CERT_FILE=/path/to/your/certificate` environment variable before you run `aria2c`. E.g: `export SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt; ./aria2c https://github.com/` or `SSL_CERT_FILE=/etc/pki/tls/certs/ca-bundle.crt ./aria2c https://github.com/`
@@ -60,6 +60,8 @@ Requirements:
 ```sh
 docker run --rm -v `pwd`:/build abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST} /build/build.sh
 ```
+
+> You can also use my GHCR image as alternative: [ghcr.io/abcfy2/musl-cross-toolchain-ubuntu](https://github.com/abcfy2/docker-musl-cross-toolchain-ubuntu/pkgs/container/musl-cross-toolchain-ubuntu)
 
 All avaliable `CROSS_HOST` can be found in [Tags](https://hub.docker.com/r/abcfy2/musl-cross-toolchain-ubuntu/tags) page.
 
