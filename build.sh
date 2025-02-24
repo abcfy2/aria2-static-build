@@ -351,8 +351,10 @@ prepare_libxml2() {
 
 prepare_sqlite() {
   sqlite_tag="$(retry wget -qO- --compression=auto https://www.sqlite.org/index.html \| sed -nr "'s/.*>Version (.+)<.*/\1/p'")"
-  sqlite_filepath="$(retry wget -qO- --compression=auto https://sqlite.org/download.html \| grep "'${sqlite_tag}.*sqlite-autoconf-.*\.tar\.gz'" \| awk -F "','" "'{print \$3}'")"
-  sqlite_latest_url="https://sqlite.org/${sqlite_filepath}"
+  sqlite_latest_url="https://github.com/sqlite/sqlite/archive/refs/tags/version-${sqlite_tag}.tar.gz"
+  if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+    sqlite_latest_url="https://ghfast.top/${sqlite_latest_url}"
+  fi
   if [ ! -f "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz.part" "${sqlite_latest_url}"
     mv -fv "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz.part" "${DOWNLOADS_DIR}/sqlite-${sqlite_tag}.tar.gz"
