@@ -331,6 +331,25 @@ prepare_ssl() {
   fi
 }
 
+prepare_libiconv() {
+  libiconv_tag="$(retry wget -qO- --compression=auto https://www.gnu.org/software/libiconv/ \| grep -i "'libiconv-.*\.tar\.gz'" \| sed -r "'s/.*libiconv-([^<]+)\.tar\.gz.*/\1/'" \| head -1)"
+  libiconv_latest_url="https://ftp.gnu.org/pub/gnu/libiconv/libiconv-${libiconv_tag}.tar.gz"
+  if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+    libiconv_latest_url="https://mirrors.bfsu.edu.cn/gnu/libiconv/libiconv-${libiconv_tag}.tar.gz"
+  fi
+  if [ ! -f "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz" ]; then
+    retry wget -cT10 -O "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz.part" "${libiconv_latest_url}"
+    mv -fv "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz.part" "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz"
+  fi
+  mkdir -p "/usr/src/libiconv-${libiconv_tag}"
+  tar -zxf "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz" --strip-components=1 -C "/usr/src/libiconv-${libiconv_tag}"
+  cd "/usr/src/libiconv-${libiconv_tag}"
+  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
+  make -j$(nproc)
+  make install
+  echo "- libiconv: ${libiconv_tag}, source: ${libiconv_latest_url:-cached libiconv}" >>"${BUILD_INFO}"
+}
+
 prepare_libxml2() {
   libxml2_latest_url="$(retry wget -qO- --compression=auto 'https://gitlab.gnome.org/api/graphql' --header="'Content-Type: application/json'" --post-data="'{\"query\":\"query {project(fullPath:\\\"GNOME/libxml2\\\"){releases(first:1,sort:RELEASED_AT_DESC){nodes{assets{links{nodes{directAssetUrl}}}}}}}\"}'" \| jq -r "'.data.project.releases.nodes[0].assets.links.nodes[0].directAssetUrl'")"
   libxml2_tag="$(echo "${libxml2_latest_url}" | sed -r 's/.*libxml2-(.+).tar.*/\1/')"
@@ -401,13 +420,13 @@ prepare_c_ares() {
 
 prepare_libssh2() {
   libssh2_tag="$(retry wget -qO- --compression=auto https://libssh2.org/ \| sed -nr "'s@.*libssh2 ([^<]*).*released on.*@\1@p'")"
-  libssh2_latest_url="https://libssh2.org/download/libssh2-${libssh2_tag}.tar.gz"
-  if [ ! -f "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz" ]; then
-    retry wget -cT10 -O "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz.part" "${libssh2_latest_url}"
-    mv -fv "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz.part" "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz"
+  libssh2_latest_url="https://libssh2.org/download/libssh2-${libssh2_tag}.tar.xz"
+  if [ ! -f "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.xz" ]; then
+    retry wget -cT10 -O "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.xz.part" "${libssh2_latest_url}"
+    mv -fv "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.xz.part" "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.xz"
   fi
   mkdir -p "/usr/src/libssh2-${libssh2_tag}"
-  tar -zxf "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.gz" --strip-components=1 -C "/usr/src/libssh2-${libssh2_tag}"
+  tar -Jxf "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.xz" --strip-components=1 -C "/usr/src/libssh2-${libssh2_tag}"
   cd "/usr/src/libssh2-${libssh2_tag}"
   ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
   make -j$(nproc)
@@ -488,6 +507,7 @@ prepare_ninja
 prepare_zlib
 prepare_xz
 prepare_ssl
+prepare_libiconv
 prepare_libxml2
 prepare_sqlite
 prepare_c_ares
