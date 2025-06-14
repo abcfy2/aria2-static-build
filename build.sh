@@ -124,6 +124,20 @@ i?86*)
   TARGET_ARCH=i386
   ;;
 esac
+case "${TARGET_HOST}" in
+*"mingw"*)
+  TARGET_HOST=Windows
+  apt update
+  apt install -y wine
+  export WINEPREFIX=/tmp/
+  RUNNER_CHECKER="wine"
+  ;;
+*)
+  TARGET_HOST=Linux
+  apt install -y "qemu-user-static"
+  RUNNER_CHECKER="qemu-${TARGET_ARCH}-static"
+  ;;
+esac
 
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
@@ -152,7 +166,11 @@ else
   SSL=OpenSSL
 fi
 
-echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
+if [ x${TARGET_HOST} = xWindows ]; then
+  echo "## Build Info - ${CROSS_HOST} with ${ZLIB}" >"${BUILD_INFO}"
+else
+  echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
+fi
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
 
 prepare_cmake() {
@@ -458,33 +476,11 @@ build_aria2() {
   if [ ! -f ./configure ]; then
     autoreconf -i
   fi
-  if [ x"${TARGET_HOST}" = xWindows ]; then
-    ARIA2_EXT_CONF='--without-openssl'
-  # else
-  #   ARIA2_EXT_CONF='--with-ca-bundle=/etc/ssl/certs/ca-certificates.crt'
-  fi
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes ${ARIA2_EXT_CONF}
+  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes
   make -j$(nproc)
   make install
   echo "- aria2: source: ${aria2_latest_url:-cached aria2}" >>"${BUILD_INFO}"
   echo >>"${BUILD_INFO}"
-}
-
-prepare_emulator() {
-  case "${TARGET_HOST}" in
-  *"mingw"*)
-    TARGET_HOST=Windows
-    apt update
-    apt install -y wine
-    export WINEPREFIX=/tmp/
-    RUNNER_CHECKER="wine"
-    ;;
-  *)
-    TARGET_HOST=Linux
-    apt install -y "qemu-user-static"
-    RUNNER_CHECKER="qemu-${TARGET_ARCH}-static"
-    ;;
-  esac
 }
 
 get_build_info() {
@@ -519,10 +515,16 @@ prepare_c_ares
 prepare_libssh2
 build_aria2
 
-prepare_emulator
 get_build_info
 # mips test will hang, I don't know why. So I just ignore test failures.
-# test_build
+case "${CROSS_HOST}" in
+mips-*linux* | mips64-*linux*)
+  echo "Skipping test_build for MIPS architecture"
+  ;;
+*)
+  test_build
+  ;;
+esac
 
 # get release
 cp -fv "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"

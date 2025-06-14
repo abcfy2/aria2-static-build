@@ -54,11 +54,6 @@ jobs:
           - x86_64-unknown-linux-musl
           - i686-unknown-linux-musl
         # use_libressl: [0, 1]
-        # exclude:
-        #   - cross_host: x86_64-w64-mingw32
-        #     use_libressl: 1
-        #   - cross_host: i686-w64-mingw32
-        #     use_libressl: 1
     steps:
       - name: Checkout
         uses: actions/checkout@v4
