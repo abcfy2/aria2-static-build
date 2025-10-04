@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - name: Set current date as env variable
         run: echo "NOW=$(date --utc)" >> $GITHUB_ENV
       - name: Delete Continuous Release
@@ -56,7 +56,7 @@ jobs:
         # use_libressl: [0, 1]
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - uses: actions/cache@v4
         id: cache
         with:
@@ -119,7 +119,7 @@ jobs:
           - i686-w64-mingw32
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
       - uses: actions/cache@v4
         id: cache
         with:
