@@ -402,10 +402,12 @@ prepare_sqlite() {
 
 prepare_c_ares() {
   # cares_latest_tag="$(retry wget -qO- --compression=auto https://api.github.com/repos/c-ares/c-ares/releases \| jq -r "'.[0].tag_name'")"
-  # cares_ver="${cares_latest_tag#v}"
-  # cares_latest_url="https://github.com/c-ares/c-ares/releases/download/${cares_latest_tag}/c-ares-${cares_ver}.tar.gz"
-  cares_ver="main"
-  cares_latest_url="https://github.com/c-ares/c-ares/archive/refs/heads/main.tar.gz"
+  # waiting for new release to resolve: https://github.com/c-ares/c-ares/issues/1069
+  cares_latest_tag="v1.34.5"
+  cares_ver="${cares_latest_tag#v}"
+  cares_latest_url="https://github.com/c-ares/c-ares/releases/download/${cares_latest_tag}/c-ares-${cares_ver}.tar.gz"
+  # cares_ver="main"
+  # cares_latest_url="https://github.com/c-ares/c-ares/archive/refs/heads/main.tar.gz"
   if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
     cares_latest_url="https://gh-proxy.com/${cares_latest_url}"
   fi
