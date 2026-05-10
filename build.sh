@@ -11,28 +11,28 @@ set -o pipefail
 # export CROSS_HOST="${CROSS_HOST:-arm-unknown-linux-musleabi}"
 # value from openssl source: ./Configure LIST
 case "${CROSS_HOST}" in
-arm-*linux*)
+arm*linux*)
   export OPENSSL_COMPILER=linux-armv4
   ;;
-aarch64-*linux*)
+aarch64*linux*)
   export OPENSSL_COMPILER=linux-aarch64
   ;;
-mips-*linux* | mipsel-*linux*)
-  export OPENSSL_COMPILER=linux-mips32
-  ;;
-mips64-*linux*)
+mips64*linux*)
   export OPENSSL_COMPILER=linux64-mips64
   ;;
-x86_64-*linux*)
+mips*linux* | mipsel*linux*)
+  export OPENSSL_COMPILER=linux-mips32
+  ;;
+x86_64*linux*)
   export OPENSSL_COMPILER=linux-x86_64
   ;;
-i?86-*linux*)
+i?86*linux*)
   export OPENSSL_COMPILER=linux-x86
   ;;
-s390x-*linux*)
+s390x*linux*)
   export OPENSSL_COMPILER=linux64-s390x
   ;;
-loongarch64-*linux*)
+loongarch64*linux*)
   export OPENSSL_COMPILER=linux64-loongarch64
   ;;
 *)
@@ -520,7 +520,7 @@ build_aria2
 get_build_info
 # mips test will hang, I don't know why. So I just ignore test failures.
 case "${CROSS_HOST}" in
-mips-*linux* | mips64-*linux*)
+mips*linux* | mips64*linux*)
   echo "Skipping test_build for MIPS architecture"
   ;;
 *)
@@ -530,3 +530,4 @@ esac
 
 # get release
 cp -fv "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
+
