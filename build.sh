@@ -11,33 +11,39 @@ set -o pipefail
 # export CROSS_HOST="${CROSS_HOST:-arm-unknown-linux-musleabi}"
 # value from openssl source: ./Configure LIST
 case "${CROSS_HOST}" in
-arm*linux*)
-  export OPENSSL_COMPILER=linux-armv4
-  ;;
-aarch64*linux*)
-  export OPENSSL_COMPILER=linux-aarch64
-  ;;
-mips64*linux*)
-  export OPENSSL_COMPILER=linux64-mips64
-  ;;
-mips*linux* | mipsel*linux*)
-  export OPENSSL_COMPILER=linux-mips32
-  ;;
-x86_64*linux*)
-  export OPENSSL_COMPILER=linux-x86_64
-  ;;
-i?86*linux*)
-  export OPENSSL_COMPILER=linux-x86
-  ;;
-s390x*linux*)
-  export OPENSSL_COMPILER=linux64-s390x
-  ;;
-loongarch64*linux*)
-  export OPENSSL_COMPILER=linux64-loongarch64
-  ;;
-*)
-  export OPENSSL_COMPILER=gcc
-  ;;
+  arm*linux*)
+    export OPENSSL_COMPILER=linux-armv4
+    ;;
+  aarch64*linux*)
+    export OPENSSL_COMPILER=linux-aarch64
+    ;;
+  mips64*linux*)
+    export OPENSSL_COMPILER=linux64-mips64
+    ;;
+  mips*linux* | mipsel*linux*)
+    export OPENSSL_COMPILER=linux-mips32
+    ;;
+  x86_64*linux*)
+    export OPENSSL_COMPILER=linux-x86_64
+    ;;
+  i?86*linux*)
+    export OPENSSL_COMPILER=linux-x86
+    ;;
+  s390x*linux*)
+    export OPENSSL_COMPILER=linux64-s390x
+    ;;
+  loongarch64*linux*)
+    export OPENSSL_COMPILER=linux64-loongarch64
+    ;;
+  x86_64-w64-mingw32)
+    export OPENSSL_COMPILER=mingw64
+    ;;
+  i686-w64-mingw32)
+    export OPENSSL_COMPILER=mingw
+    ;;
+  *)
+    export OPENSSL_COMPILER=gcc
+    ;;
 esac
 
 export USE_ZLIB_NG="${USE_ZLIB_NG:-1}"
@@ -114,34 +120,34 @@ BUILD_ARCH="$(gcc -dumpmachine)"
 TARGET_ARCH="${CROSS_HOST%%-*}"
 TARGET_HOST="${CROSS_HOST#*-}"
 case "${TARGET_ARCH}" in
-"armel"*)
-  TARGET_ARCH=armel
-  ;;
-"arm"*)
-  TARGET_ARCH=arm
-  ;;
-i?86*)
-  TARGET_ARCH=i386
-  ;;
+  "armel"*)
+    TARGET_ARCH=armel
+    ;;
+  "arm"*)
+    TARGET_ARCH=arm
+    ;;
+  i?86*)
+    TARGET_ARCH=i386
+    ;;
 esac
 case "${TARGET_HOST}" in
-*"mingw"*)
-  TARGET_HOST=Windows
-  apt update
-  apt install -y wine
-  export WINEPREFIX=/tmp/
-  RUNNER_CHECKER="wine"
-  ;;
-*)
-  TARGET_HOST=Linux
-  apt install -y "qemu-user"
-  RUNNER_CHECKER="qemu-${TARGET_ARCH}"
-  ;;
+  *"mingw"*)
+    TARGET_HOST=Windows
+    apt update
+    apt install -y wine
+    export WINEPREFIX=/tmp/
+    RUNNER_CHECKER="wine"
+    ;;
+  *)
+    TARGET_HOST=Linux
+    apt install -y "qemu-user"
+    RUNNER_CHECKER="qemu-${TARGET_ARCH}"
+    ;;
 esac
 
 export PATH="${CROSS_ROOT}/bin:${PATH}"
 export CROSS_PREFIX="${CROSS_ROOT}/${CROSS_HOST}"
-export PKG_CONFIG_PATH="${CROSS_PREFIX}/lib64/pkgconfig:${CROSS_PREFIX}/lib/pkgconfig:${PKG_CONFIG_PATH}"
+export PKG_CONFIG_LIBDIR="${CROSS_PREFIX}/lib64/pkgconfig:${CROSS_PREFIX}/lib/pkgconfig"
 export LDFLAGS="-L${CROSS_PREFIX}/lib64 -L${CROSS_PREFIX}/lib -s -static --static"
 export CFLAGS="-I${CROSS_PREFIX}/include"
 export CC="${CROSS_HOST}-cc"
@@ -166,11 +172,7 @@ else
   SSL=OpenSSL
 fi
 
-if [ x${TARGET_HOST} = xWindows ]; then
-  echo "## Build Info - ${CROSS_HOST} with ${ZLIB}" >"${BUILD_INFO}"
-else
-  echo "## Build Info - ${CROSS_HOST} With ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
-fi
+echo "## Build Info - ${CROSS_HOST} with ${SSL} and ${ZLIB}" >"${BUILD_INFO}"
 echo "Building using these dependencies:" >>"${BUILD_INFO}"
 
 prepare_cmake() {
@@ -293,50 +295,47 @@ prepare_xz() {
 }
 
 prepare_ssl() {
-  # Windows will use Wintls, not openssl
-  if [ x"${TARGET_HOST}" != xWindows ]; then
-    if [ x"${USE_LIBRESSL}" = x1 ]; then
-      # libressl
-      libressl_tag="$(retry wget -qO- --compression=auto https://www.libressl.org/index.html \| grep "'release is'" \| tail -1 \| sed -r "'s/.* (.+)<.*>$/\1/'")" libressl_latest_url="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
-      if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-        libressl_latest_url="https://mirror.sjtu.edu.cn/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
-      fi
-      if [ ! -f "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz" ]; then
-        retry wget -cT10 -O "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz.part" "${libressl_latest_url}"
-        mv -fv "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz.part" "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz"
-      fi
-      mkdir -p "/usr/src/libressl-${libressl_tag}"
-      tar -zxf "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz" --strip-components=1 -C "/usr/src/libressl-${libressl_tag}"
-      cd "/usr/src/libressl-${libressl_tag}"
-      if [ ! -f "./configure" ]; then
-        ./autogen.sh
-      fi
-      ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared --with-openssldir=/etc/ssl
-      make -j$(nproc)
-      make install_sw
-      libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
-      echo "- libressl: ${libressl_ver}, source: ${libressl_latest_url:-cached libressl}" >>"${BUILD_INFO}"
-    else
-      # openssl
-      openssl_filename="$(retry wget -qO- --compression=auto https://openssl-library.org/source/ \| grep -o "'>openssl-3\(\.[0-9]*\)*tar.gz<'" \| grep -o "'[^>]*.tar.gz'" \| sort -nr \| head -1)"
-      openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
-      openssl_latest_url="https://github.com/openssl/openssl/releases/download/openssl-${openssl_ver}/${openssl_filename}"
-      if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-        openssl_latest_url="https://gh-proxy.com/${openssl_latest_url}"
-      fi
-      if [ ! -f "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" ]; then
-        retry wget -cT10 -O "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_latest_url}"
-        mv -fv "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz.part" "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz"
-      fi
-      mkdir -p "/usr/src/openssl-${openssl_ver}"
-      tar -zxf "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" --strip-components=1 -C "/usr/src/openssl-${openssl_ver}"
-      cd "/usr/src/openssl-${openssl_ver}"
-      CC="cc" ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}" --openssldir=/etc/ssl
-      make -j$(nproc)
-      make install_sw
-      openssl_ver="$(grep Version: "${CROSS_PREFIX}"/lib*/pkgconfig/openssl.pc)"
-      echo "- openssl: ${openssl_ver}, source: ${openssl_latest_url:-cached openssl}" >>"${BUILD_INFO}"
+  if [ x"${USE_LIBRESSL}" = x1 ]; then
+    # libressl
+    libressl_tag="$(retry wget -qO- --compression=auto https://www.libressl.org/index.html \| grep "'release is'" \| tail -1 \| sed -r "'s/.* (.+)<.*>$/\1/'")" libressl_latest_url="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
+    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+      libressl_latest_url="https://mirror.sjtu.edu.cn/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
     fi
+    if [ ! -f "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz" ]; then
+      retry wget -cT10 -O "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz.part" "${libressl_latest_url}"
+      mv -fv "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz.part" "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz"
+    fi
+    mkdir -p "/usr/src/libressl-${libressl_tag}"
+    tar -zxf "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz" --strip-components=1 -C "/usr/src/libressl-${libressl_tag}"
+    cd "/usr/src/libressl-${libressl_tag}"
+    if [ ! -f "./configure" ]; then
+      ./autogen.sh
+    fi
+    ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared --with-openssldir=/etc/ssl
+    make -j$(nproc)
+    make install_sw
+    libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
+    echo "- libressl: ${libressl_ver}, source: ${libressl_latest_url:-cached libressl}" >>"${BUILD_INFO}"
+  else
+    # openssl
+    openssl_filename="$(retry wget -qO- --compression=auto https://openssl-library.org/source/ \| grep -o "'>openssl-3\(\.[0-9]*\)*tar.gz<'" \| grep -o "'[^>]*.tar.gz'" \| sort -nr \| head -1)"
+    openssl_ver="$(echo "${openssl_filename}" | sed -r 's/openssl-(.+)\.tar\.gz/\1/')"
+    openssl_latest_url="https://github.com/openssl/openssl/releases/download/openssl-${openssl_ver}/${openssl_filename}"
+    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+      openssl_latest_url="https://gh-proxy.com/${openssl_latest_url}"
+    fi
+    if [ ! -f "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" ]; then
+      retry wget -cT10 -O "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz.part" "${openssl_latest_url}"
+      mv -fv "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz.part" "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz"
+    fi
+    mkdir -p "/usr/src/openssl-${openssl_ver}"
+    tar -zxf "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" --strip-components=1 -C "/usr/src/openssl-${openssl_ver}"
+    cd "/usr/src/openssl-${openssl_ver}"
+    CC="cc" ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}" --openssldir=/etc/ssl
+    make -j$(nproc)
+    make install_sw
+    openssl_ver="$(grep Version: "${CROSS_PREFIX}"/lib*/pkgconfig/openssl.pc)"
+    echo "- openssl: ${openssl_ver}, source: ${openssl_latest_url:-cached openssl}" >>"${BUILD_INFO}"
   fi
 }
 
@@ -438,7 +437,7 @@ prepare_libssh2() {
   mkdir -p "/usr/src/libssh2-${libssh2_tag}"
   tar -Jxf "${DOWNLOADS_DIR}/libssh2-${libssh2_tag}.tar.xz" --strip-components=1 -C "/usr/src/libssh2-${libssh2_tag}"
   cd "/usr/src/libssh2-${libssh2_tag}"
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules
+  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules --disable-examples-build
   make -j$(nproc)
   make install
   libssh2_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/libssh2.pc")"
@@ -454,7 +453,7 @@ build_aria2() {
     if [ -f "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz" ]; then
       cached_file_ts="$(stat -c '%Y' "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz")"
       current_ts="$(date +%s)"
-      if [ "$((${current_ts} - "${cached_file_ts}"))" -gt 86400 ]; then
+      if [ "$((current_ts - "${cached_file_ts}"))" -gt 86400 ]; then
         echo "Delete expired aria2 archive file cache..."
         rm -f "${DOWNLOADS_DIR}/aria2-${aria2_tag}.tar.gz"
       fi
@@ -480,7 +479,7 @@ build_aria2() {
   if [ ! -f ./configure ]; then
     autoreconf -i
   fi
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules ARIA2_STATIC=yes
+  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-static --disable-shared --enable-silent-rules --without-wintls ARIA2_STATIC=yes
   make -j$(nproc)
   make install
   echo "- aria2: source: ${aria2_latest_url:-cached aria2}" >>"${BUILD_INFO}"
@@ -522,14 +521,13 @@ build_aria2
 get_build_info
 # mips test will hang, I don't know why. So I just ignore test failures.
 case "${CROSS_HOST}" in
-mips*linux* | mips64*linux*)
-  echo "Skipping test_build for MIPS architecture"
-  ;;
-*)
-  test_build
-  ;;
+  mips*linux* | mips64*linux*)
+    echo "Skipping test_build for MIPS architecture"
+    ;;
+  *)
+    test_build
+    ;;
 esac
 
 # get release
 cp -fv "${CROSS_PREFIX}/bin/"aria2* "${SELF_DIR}"
-

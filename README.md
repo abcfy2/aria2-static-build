@@ -64,7 +64,7 @@ docker run --rm -v `pwd`:/build abcfy2/musl-cross-toolchain-ubuntu:${CROSS_HOST}
 docker run --rm -v `pwd`:/build abcfy2/mingw-cross-toolchain-ubuntu:${CROSS_HOST} /build/build.sh
 ```
 
-> You can also use my GHCR image as alternative: [ghcr.io/abcfy2/musl-cross-toolchain-ubuntu](https://github.com/abcfy2/docker-musl-cross-toolchain-ubuntu/pkgs/container/musl-cross-toolchain-ubuntu)
+> You can also use my GHCR image as alternative: [ghcr.io/abcfy2/musl-cross-toolchain-ubuntu](https://github.com/abcfy2/docker-musl-cross-toolchain-ubuntu/pkgs/container/musl-cross-toolchain-ubuntu) and [ghcr.io/abcfy2/mingw-cross-toolchain-ubuntu](https://github.com/abcfy2/docker-mingw-cross-toolchain-ubuntu/pkgs/container/mingw-cross-toolchain-ubuntu)
 
 All avaliable `CROSS_HOST` can be found in [Tags](https://hub.docker.com/r/abcfy2/musl-cross-toolchain-ubuntu/tags) page.
 
