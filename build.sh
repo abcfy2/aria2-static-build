@@ -35,10 +35,10 @@ case "${CROSS_HOST}" in
   loongarch64*linux*)
     export OPENSSL_COMPILER=linux64-loongarch64
     ;;
-  x86_64-w64-mingw32)
+  x86_64*mingw*)
     export OPENSSL_COMPILER=mingw64
     ;;
-  i686-w64-mingw32)
+  i686*mingw*)
     export OPENSSL_COMPILER=mingw
     ;;
   *)
@@ -239,7 +239,7 @@ prepare_zlib() {
       -DCMAKE_INSTALL_PREFIX="${CROSS_PREFIX}" \
       -DCMAKE_C_COMPILER="${CROSS_HOST}-cc" \
       -DCMAKE_SYSTEM_PROCESSOR="${TARGET_ARCH}" \
-      -DWITH_GTEST=OFF
+      -DBUILD_TESTING=OFF
     cmake --build build
     cmake --install build
     zlib_ng_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/zlib.pc")"
@@ -287,7 +287,7 @@ prepare_xz() {
   mkdir -p "/usr/src/xz-${xz_tag}"
   tar -Jxf "${DOWNLOADS_DIR}/xz-${xz_tag}.tar.xz" --strip-components=1 -C "/usr/src/xz-${xz_tag}"
   cd "/usr/src/xz-${xz_tag}"
-  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
+  ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared --disable-xz --disable-xzdec --disable-lzmadec --disable-lzmainfo --disable-scripts --disable-doc
   make -j$(nproc)
   make install
   xz_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/liblzma.pc")"
@@ -297,10 +297,8 @@ prepare_xz() {
 prepare_ssl() {
   if [ x"${USE_LIBRESSL}" = x1 ]; then
     # libressl
-    libressl_tag="$(retry wget -qO- --compression=auto https://www.libressl.org/index.html \| grep "'release is'" \| tail -1 \| sed -r "'s/.* (.+)<.*>$/\1/'")" libressl_latest_url="https://ftp.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
-    if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
-      libressl_latest_url="https://mirror.sjtu.edu.cn/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
-    fi
+    libressl_tag="$(retry wget -qO- --compression=auto https://www.libressl.org/index.html \| grep "'release is'" \| tail -1 \| sed -r "'s/.* (.+)<.*>$/\1/'")"
+    libressl_latest_url="https://cloudflare.cdn.openbsd.org/pub/OpenBSD/LibreSSL/libressl-${libressl_tag}.tar.gz"
     if [ ! -f "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz" ]; then
       retry wget -cT10 -O "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz.part" "${libressl_latest_url}"
       mv -fv "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz.part" "${DOWNLOADS_DIR}/libressl-${libressl_tag}.tar.gz"
@@ -311,7 +309,7 @@ prepare_ssl() {
     if [ ! -f "./configure" ]; then
       ./autogen.sh
     fi
-    ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared --with-openssldir=/etc/ssl
+    ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared --disable-tests --with-openssldir=/etc/ssl
     make -j$(nproc)
     make install_sw
     libressl_ver="$(grep Version: "${CROSS_PREFIX}/lib/pkgconfig/openssl.pc")"
@@ -331,7 +329,7 @@ prepare_ssl() {
     mkdir -p "/usr/src/openssl-${openssl_ver}"
     tar -zxf "${DOWNLOADS_DIR}/openssl-${openssl_ver}.tar.gz" --strip-components=1 -C "/usr/src/openssl-${openssl_ver}"
     cd "/usr/src/openssl-${openssl_ver}"
-    CC="cc" ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" "${OPENSSL_COMPILER}" --openssldir=/etc/ssl
+    CC="cc" ./Configure -static --cross-compile-prefix="${CROSS_HOST}-" --prefix="${CROSS_PREFIX}" no-apps "${OPENSSL_COMPILER}" --openssldir=/etc/ssl
     make -j$(nproc)
     make install_sw
     openssl_ver="$(grep Version: "${CROSS_PREFIX}"/lib*/pkgconfig/openssl.pc)"
@@ -351,7 +349,7 @@ prepare_libiconv() {
   cd "/usr/src/libiconv-${libiconv_tag}"
   ./configure --host="${CROSS_HOST}" --prefix="${CROSS_PREFIX}" --enable-silent-rules --enable-static --disable-shared
   make -j$(nproc)
-  make install
+  make install-lib
   echo "- libiconv: ${libiconv_tag}, source: ${libiconv_latest_url:-cached libiconv}" >>"${BUILD_INFO}"
 }
 
