@@ -73,23 +73,23 @@ if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
   if [ -f "/etc/apt/sources.list.d/ubuntu.sources" ]; then
     cat >/etc/apt/sources.list.d/ubuntu.sources <<EOF
 Types: deb
-URIs: http://mirrors.bfsu.edu.cn/ubuntu/
+URIs: http://mirrors.cernet.edu.cn/ubuntu/
 Suites: ${UBUNTU_CODENAME} ${UBUNTU_CODENAME}-updates ${UBUNTU_CODENAME}-backports
 Components: main universe restricted multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 
 Types: deb
-URIs: http://mirrors.bfsu.edu.cn/ubuntu/
+URIs: http://mirrors.cernet.edu.cn/ubuntu/
 Suites: ${UBUNTU_CODENAME}-security
 Components: main universe restricted multiverse
 Signed-By: /usr/share/keyrings/ubuntu-archive-keyring.gpg
 EOF
   else
     cat >/etc/apt/sources.list <<EOF
-deb http://mirrors.bfsu.edu.cn/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
-deb http://mirrors.bfsu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
-deb http://mirrors.bfsu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse
-deb http://mirrors.bfsu.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse
+deb http://mirrors.cernet.edu.cn/ubuntu/ ${UBUNTU_CODENAME} main restricted universe multiverse
+deb http://mirrors.cernet.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-updates main restricted universe multiverse
+deb http://mirrors.cernet.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-backports main restricted universe multiverse
+deb http://mirrors.cernet.edu.cn/ubuntu/ ${UBUNTU_CODENAME}-security main restricted universe multiverse
 EOF
   fi
 fi
@@ -338,8 +338,12 @@ prepare_ssl() {
 }
 
 prepare_libiconv() {
-  libiconv_tag="$(retry wget -qO- --compression=auto https://ftpmirror.gnu.org/libiconv/ \| grep -i "'libiconv-.*\.tar\.gz'" \| sed -r "'s/.*libiconv-([^<]+)\.tar\.gz.*/\1/'" \| sort -Vr \| head -1)"
-  libiconv_latest_url="https://ftpmirror.gnu.org/libiconv/libiconv-${libiconv_tag}.tar.gz"
+  libiconv_base="https://mirrors.kernel.org/gnu"
+  if [ x"${USE_CHINA_MIRROR}" = x1 ]; then
+    libiconv_base="https://mirrors.cernet.edu.cn/gnu"
+  fi
+  libiconv_tag="$(retry wget -qO- --compression=auto "${libiconv_base}/libiconv/" \| grep -i "'libiconv-.*\.tar\.gz'" \| sed -r "'s/.*libiconv-([^<]+)\.tar\.gz.*/\1/'" \| sort -Vr \| head -1)"
+  libiconv_latest_url="${libiconv_base}/libiconv/libiconv-${libiconv_tag}.tar.gz"
   if [ ! -f "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz" ]; then
     retry wget -cT10 -O "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz.part" "${libiconv_latest_url}"
     mv -fv "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz.part" "${DOWNLOADS_DIR}/libiconv-${libiconv_tag}.tar.gz"
