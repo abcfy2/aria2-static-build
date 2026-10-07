@@ -40,7 +40,7 @@ jobs:
 
   static-build-linux:
     runs-on: ubuntu-latest
-    container: "ghcr.io/abcfy2/clang-cross-toolchain-ubuntu:${{ matrix.cross_host }}"
+    container: "ghcr.io/abcfy2/musl-cross-toolchain-ubuntu:${{ matrix.cross_host }}"
     strategy:
       fail-fast: false
       matrix:
@@ -48,6 +48,10 @@ jobs:
           - arm-unknown-linux-musleabi
           - armv7-unknown-linux-musleabihf
           - aarch64-unknown-linux-musl
+          - mips-unknown-linux-musl
+          - mipsel-unknown-linux-musl
+          - mips64-unknown-linux-musl
+          - mips64el-unknown-linux-musl
           - loongarch64-unknown-linux-musl
           - x86_64-unknown-linux-musl
           - i686-unknown-linux-musl
